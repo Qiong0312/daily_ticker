@@ -69,54 +69,61 @@ export function TodayView() {
 
   return (
     <div className="space-y-4">
-      <section className="card border-sky-300">
-        <p className="text-sm font-semibold text-sky-600">How&apos;s today?</p>
-        <h2 className="mb-3 text-2xl font-bold text-purple-800">
-          {formatDisplayDate(date)} 🌈
-        </h2>
-
-        {streak > 0 && (
-          <p className="mb-3 inline-block rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-600">
-            🔥 {streak}-day streak!
-          </p>
-        )}
-
-        <p className="mb-2 text-sm font-semibold text-purple-600">Weather</p>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {WEATHER_OPTIONS.map((w) => (
-            <button
-              key={w.value}
-              type="button"
-              onClick={() => setWeather(w.value)}
-              title={w.label}
-              className={`rounded-xl px-3 py-2 text-2xl transition-transform active:scale-95 ${
-                entry?.weather === w.value
-                  ? "scale-110 bg-yellow-100 ring-2 ring-yellow-400"
-                  : "bg-white/70 hover:bg-white"
-              }`}
-            >
-              {w.icon}
-            </button>
-          ))}
+      <section className="card border-sky-300 p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <div>
+            <p className="text-xs font-semibold text-sky-600">How&apos;s today?</p>
+            <p className="text-base font-bold text-purple-800">{formatDisplayDate(date)}</p>
+          </div>
+          {streak > 0 && (
+            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
+              🔥 {streak}-day streak
+            </span>
+          )}
         </div>
 
-        <p className="mb-2 text-sm font-semibold text-purple-600">How do you feel?</p>
-        <div className="flex flex-wrap gap-2">
-          {MOOD_OPTIONS.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => setMood(m.value)}
-              title={m.label}
-              className={`rounded-xl px-3 py-2 text-2xl transition-transform active:scale-95 ${
-                entry?.mood === m.value
-                  ? "scale-110 bg-yellow-100 ring-2 ring-yellow-400"
-                  : "bg-white/70 hover:bg-white"
-              }`}
-            >
-              {m.icon}
-            </button>
-          ))}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-purple-500">Weather</p>
+            <div className="flex flex-wrap gap-1">
+              {WEATHER_OPTIONS.map((w) => (
+                <button
+                  key={w.value}
+                  type="button"
+                  onClick={() => setWeather(w.value)}
+                  title={w.label}
+                  className={`rounded-lg px-1.5 py-0.5 text-lg transition-transform active:scale-95 ${
+                    entry?.weather === w.value
+                      ? "bg-yellow-100 ring-2 ring-yellow-400"
+                      : "bg-white/70 hover:bg-white"
+                  }`}
+                >
+                  {w.icon}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-purple-500">Feel</p>
+            <div className="flex flex-wrap gap-1">
+              {MOOD_OPTIONS.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setMood(m.value)}
+                  title={m.label}
+                  className={`rounded-lg px-1.5 py-0.5 text-lg transition-transform active:scale-95 ${
+                    entry?.mood === m.value
+                      ? "bg-yellow-100 ring-2 ring-yellow-400"
+                      : "bg-white/70 hover:bg-white"
+                  }`}
+                >
+                  {m.icon}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
