@@ -73,7 +73,7 @@ export function TodayView() {
         <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div>
             <p className="text-xs font-semibold text-sky-600">How&apos;s today?</p>
-            <p className="text-base font-bold text-purple-800">{formatDisplayDate(date)}</p>
+            <p className="text-lg font-bold text-purple-800">{formatDisplayDate(date)}</p>
           </div>
           {streak > 0 && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
