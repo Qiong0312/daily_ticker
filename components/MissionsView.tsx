@@ -185,14 +185,16 @@ function MissionForm({
         </label>
 
         <p className="mb-2 text-sm font-semibold text-purple-700">Icon</p>
-        <div className="mb-4 grid max-h-32 grid-cols-8 gap-1 overflow-y-auto">
+        <div className="mb-4 grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto p-1">
           {MISSION_ICONS.map((i) => (
             <button
               key={i}
               type="button"
               onClick={() => setIcon(i)}
-              className={`rounded-lg py-1 text-xl ${
-                icon === i ? "bg-yellow-100 ring-2 ring-yellow-400" : "hover:bg-purple-50"
+              className={`rounded-lg p-1 text-xl ${
+                icon === i
+                  ? "bg-yellow-100 ring-2 ring-yellow-400 ring-offset-1"
+                  : "hover:bg-purple-50"
               }`}
             >
               {i}
