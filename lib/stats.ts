@@ -2,9 +2,10 @@ import {
   getPeriodRange,
   isDateInRange,
   parseDateKey,
+  startOfMonth,
   todayKey,
 } from "./date-utils";
-import type { DailyMission, Mission, Period } from "./types";
+import type { DailyEntry, DailyMission, Mission, Period } from "./types";
 
 export interface MissionCount {
   mission: Mission;
@@ -116,6 +117,29 @@ export function getActiveDaysInMonth(
   }
 
   return days;
+}
+
+export function getEarliestActivityMonth(
+  dailyMissions: DailyMission[],
+  dailyEntries: DailyEntry[],
+  profileId: string,
+  fallback: Date = new Date()
+): Date {
+  let earliest: string | null = null;
+
+  for (const dm of dailyMissions) {
+    if (dm.profileId === profileId && dm.completed) {
+      if (!earliest || dm.date < earliest) earliest = dm.date;
+    }
+  }
+
+  for (const entry of dailyEntries) {
+    if (entry.profileId === profileId) {
+      if (!earliest || entry.date < earliest) earliest = entry.date;
+    }
+  }
+
+  return earliest ? startOfMonth(parseDateKey(earliest)) : startOfMonth(fallback);
 }
 
 export function getDayRecap(

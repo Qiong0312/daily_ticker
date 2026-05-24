@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppProvider";
 import { computeAchievements, groupAchievementsByCategory, sortAchievementsForDisplay, ACHIEVEMENT_CATEGORY_LABELS } from "@/lib/achievements";
 import {
   formatDateKey,
   getDaysInMonth,
   parseDateKey,
+  startOfMonth,
 } from "@/lib/date-utils";
 import {
   countStars,
   getActiveDaysInMonth,
   getDayRecap,
+  getEarliestActivityMonth,
   getTopMissions,
 } from "@/lib/stats";
 import type { Achievement, Period } from "@/lib/types";
@@ -41,16 +43,60 @@ export function WinsView() {
   const { activeProfile, data, getMissionsForProfile } = useApp();
   const [period, setPeriod] = useState<Period>("week");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
+
+  const now = new Date();
+  const profileId = activeProfile?.id;
+
+  useEffect(() => {
+    if (period === "month") {
+      setCalendarMonth(startOfMonth(new Date()));
+      setSelectedDay(null);
+    }
+  }, [period]);
+
+  const displayMonth = period === "year" ? calendarMonth : startOfMonth(now);
+  const calendarYear = displayMonth.getFullYear();
+  const calendarMonthIndex = displayMonth.getMonth();
 
   const calendarDays = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = getDaysInMonth(calendarYear, calendarMonthIndex);
+    const firstDay = new Date(calendarYear, calendarMonthIndex, 1).getDay();
     const offset = firstDay === 0 ? 6 : firstDay - 1;
-    return { daysInMonth, offset, year, month };
-  }, []);
+    return { daysInMonth, offset, year: calendarYear, month: calendarMonthIndex };
+  }, [calendarYear, calendarMonthIndex]);
+
+  const earliestMonth = useMemo(() => {
+    if (!profileId || !activeProfile) return startOfMonth(new Date());
+    return getEarliestActivityMonth(
+      data.dailyMissions,
+      data.dailyEntries,
+      profileId,
+      parseDateKey(activeProfile.createdAt)
+    );
+  }, [data.dailyEntries, data.dailyMissions, profileId, activeProfile]);
+
+  const currentMonth = startOfMonth(now);
+  const canGoPrevMonth =
+    period === "year" && displayMonth.getTime() > earliestMonth.getTime();
+  const canGoNextMonth =
+    period === "year" && displayMonth.getTime() < currentMonth.getTime();
+
+  const goPrevMonth = () => {
+    if (!canGoPrevMonth) return;
+    setCalendarMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+    );
+    setSelectedDay(null);
+  };
+
+  const goNextMonth = () => {
+    if (!canGoNextMonth) return;
+    setCalendarMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+    );
+    setSelectedDay(null);
+  };
 
   if (!activeProfile) return null;
 
@@ -70,12 +116,11 @@ export function WinsView() {
   );
   const achievementGroups = groupAchievementsByCategory(achievements);
 
-  const now = new Date();
   const activeDays = getActiveDaysInMonth(
     data.dailyMissions,
     activeProfile.id,
-    now.getFullYear(),
-    now.getMonth()
+    calendarYear,
+    calendarMonthIndex
   );
   const maxCount = topMissions[0]?.count ?? 1;
   const periodLabel =
@@ -158,9 +203,40 @@ export function WinsView() {
 
       {(period === "month" || period === "year") && (
         <section className="card border-sky-300">
-          <h3 className="mb-3 text-lg font-bold text-purple-800">
-            {now.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-          </h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            {period === "year" ? (
+              <button
+                type="button"
+                onClick={goPrevMonth}
+                disabled={!canGoPrevMonth}
+                aria-label="Previous month"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-lg font-bold text-purple-700 transition-colors hover:bg-purple-200 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                ‹
+              </button>
+            ) : (
+              <span className="w-9" aria-hidden />
+            )}
+            <h3 className="flex-1 text-center text-lg font-bold text-purple-800">
+              {displayMonth.toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}
+            </h3>
+            {period === "year" ? (
+              <button
+                type="button"
+                onClick={goNextMonth}
+                disabled={!canGoNextMonth}
+                aria-label="Next month"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-lg font-bold text-purple-700 transition-colors hover:bg-purple-200 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                ›
+              </button>
+            ) : (
+              <span className="w-9" aria-hidden />
+            )}
+          </div>
           <div className="mb-1 grid grid-cols-7 gap-1 text-center text-xs font-bold text-purple-500">
             {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
               <span key={d}>{d}</span>
