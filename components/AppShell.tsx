@@ -7,11 +7,13 @@ import { MissionsView } from "@/components/MissionsView";
 import { WinsView } from "@/components/WinsView";
 import { OverlayScrollbar } from "@/components/OverlayScrollbar";
 import { ProfileSwitchButton } from "@/components/ProfileSwitchButton";
+import { BottomNavTab } from "@/components/BottomNav";
+import type { Tab } from "@/lib/types";
 
-const TABS = [
-  { id: "today" as const, label: "Today", icon: "🏠" },
-  { id: "wins" as const, label: "My Wins", icon: "⭐" },
-  { id: "missions" as const, label: "Missions", icon: "🎯" },
+const TABS: { id: Tab; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "wins", label: "My Wins" },
+  { id: "missions", label: "Missions" },
 ];
 
 export function AppShell() {
@@ -45,22 +47,16 @@ export function AppShell() {
         <OverlayScrollbar targetRef={mainRef} contentKey={tab} />
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 mx-auto max-w-lg border-t-2 border-white/50 bg-white/90 backdrop-blur-md">
-        <div className="flex justify-around px-2 py-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 mx-auto max-w-lg border-t-2 border-purple-100/80 bg-white/92 px-2 py-2 backdrop-blur-md">
+        <div className="flex justify-around gap-1">
           {TABS.map((t) => (
-            <button
+            <BottomNavTab
               key={t.id}
-              type="button"
+              id={t.id}
+              label={t.label}
+              active={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 transition-colors ${
-                tab === t.id
-                  ? "bg-yellow-100 text-purple-800"
-                  : "text-purple-500 hover:bg-purple-50"
-              }`}
-            >
-              <span className="text-2xl">{t.icon}</span>
-              <span className="text-xs font-bold">{t.label}</span>
-            </button>
+            />
           ))}
         </div>
       </nav>
