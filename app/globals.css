@@ -16,10 +16,26 @@ body {
   color: var(--foreground);
   font-family: var(--font-nunito), system-ui, sans-serif;
   min-height: 100vh;
+  overflow: hidden;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
 }
 
 .card {
   @apply rounded-2xl bg-white/90 p-4 shadow-md border-2;
+}
+
+/* Hide native scrollbar — custom overlay thumb used instead */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }
 
 .celebrate-banner {
