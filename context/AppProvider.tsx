@@ -41,7 +41,7 @@ interface AppContextValue {
   addMission: (mission: Omit<Mission, "id" | "profileId" | "sortOrder">) => void;
   updateMission: (
     id: string,
-    updates: Partial<Pick<Mission, "name" | "icon" | "color">>
+    updates: Partial<Pick<Mission, "name" | "icon" | "color" | "weeklyGoal">>
   ) => void;
   deleteMission: (id: string) => void;
   reorderMissions: (orderedIds: string[]) => void;
@@ -148,7 +148,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateMission = useCallback(
     (
       id: string,
-      updates: Partial<Pick<Mission, "name" | "icon" | "color">>
+      updates: Partial<Pick<Mission, "name" | "icon" | "color" | "weeklyGoal">>
     ) => {
       update((prev) => ({
         ...prev,

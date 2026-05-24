@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppProvider";
 import {
+  DEFAULT_WEEKLY_GOAL,
+  getWeeklyGoal,
+  MAX_WEEKLY_GOAL,
+  MIN_WEEKLY_GOAL,
+} from "@/lib/mission-utils";
+import {
   MISSION_COLORS,
   MISSION_ICONS,
   type Mission,
@@ -63,7 +69,7 @@ export function MissionsView() {
       </div>
 
       <p className="text-sm text-purple-600">
-        Create and edit your mission bubbles. Drag to reorder!
+        Create and edit your mission bubbles. Set a weekly star goal for each one!
       </p>
 
       <ul className="space-y-2">
@@ -83,7 +89,12 @@ export function MissionsView() {
             >
               {mission.icon}
             </span>
-            <span className="flex-1 font-bold text-purple-800">{mission.name}</span>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-purple-800">{mission.name}</p>
+              <p className="text-xs font-semibold text-purple-500">
+                {getWeeklyGoal(mission)}⭐ weekly goal
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -139,12 +150,20 @@ function MissionForm({
   onCancel,
 }: {
   mission: Mission | null;
-  onSave: (data: { name: string; icon: string; color: string }) => void;
+  onSave: (data: {
+    name: string;
+    icon: string;
+    color: string;
+    weeklyGoal: number;
+  }) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(mission?.name ?? "");
   const [icon, setIcon] = useState(mission?.icon ?? MISSION_ICONS[0]);
   const [color, setColor] = useState(mission?.color ?? MISSION_COLORS[0]);
+  const [weeklyGoal, setWeeklyGoal] = useState(
+    mission ? getWeeklyGoal(mission) : DEFAULT_WEEKLY_GOAL
+  );
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-purple-900/30 p-4 backdrop-blur-sm sm:items-center">
@@ -197,6 +216,30 @@ function MissionForm({
           ))}
         </div>
 
+        <p className="mb-2 mt-4 text-sm font-semibold text-purple-700">Weekly star goal</p>
+        <p className="mb-2 text-xs text-purple-500">
+          How many stars to aim for each week?
+        </p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {Array.from(
+            { length: MAX_WEEKLY_GOAL - MIN_WEEKLY_GOAL + 1 },
+            (_, i) => i + MIN_WEEKLY_GOAL
+          ).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setWeeklyGoal(n)}
+              className={`min-w-[2.75rem] rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+                weeklyGoal === n
+                  ? "bg-yellow-100 ring-2 ring-yellow-400 text-purple-800"
+                  : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+              }`}
+            >
+              {n}⭐
+            </button>
+          ))}
+        </div>
+
         <div className="mt-6 flex gap-3">
           <button
             type="button"
@@ -208,7 +251,9 @@ function MissionForm({
           <button
             type="button"
             disabled={!name.trim()}
-            onClick={() => onSave({ name: name.trim(), icon, color })}
+            onClick={() =>
+              onSave({ name: name.trim(), icon, color, weeklyGoal })
+            }
             className="flex-1 rounded-xl bg-gradient-to-r from-orange-400 to-pink-500 py-3 font-bold text-white shadow disabled:opacity-50"
           >
             Save mission

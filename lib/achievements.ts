@@ -2,11 +2,11 @@ import {
   countStars,
   getLongestStreakWithMinStars,
   getMaxStarsInDay,
-  getMissionCountAllTime,
   getMissionCountInPeriod,
   getStreak,
   hasCompletedAllMissionsInPeriod,
 } from "./stats";
+import { getWeeklyGoal } from "./mission-utils";
 import type { Achievement, DailyMission, Mission } from "./types";
 
 type Tier = Achievement["tier"];
@@ -17,9 +17,6 @@ const STAR_YEAR = { bronze: 400, silver: 800, gold: 1200 };
 
 const STREAK_DAYS = { bronze: 3, silver: 7, gold: 14 };
 const CONSISTENT_DAYS = { bronze: 5, silver: 7, gold: 10 };
-
-const SUBJECT_MONTH = { bronze: 12, silver: 20, gold: 26 };
-const SUBJECT_ALL_TIME = { bronze: 30, silver: 75, gold: 120 };
 
 function tierFromThresholds(
   value: number,
@@ -74,29 +71,18 @@ function buildTieredAchievement(
   };
 }
 
-function buildSubjectBadge(
+function buildWeeklyGoalAchievement(
   mission: Mission,
-  monthCount: number,
-  allTimeCount: number
+  weekCount: number
 ): Achievement {
-  const monthTier = tierFromThresholds(monthCount, SUBJECT_MONTH);
-  const allTimeTier = tierFromThresholds(allTimeCount, SUBJECT_ALL_TIME);
-
-  const tierRank = { locked: 0, bronze: 1, silver: 2, gold: 3 };
-  const tier =
-    tierRank[allTimeTier] >= tierRank[monthTier] ? allTimeTier : monthTier;
-
-  const useAllTime = tier === allTimeTier && allTimeTier !== "locked";
-  const progress = useAllTime ? allTimeCount : monthCount;
-  const thresholds = useAllTime ? SUBJECT_ALL_TIME : SUBJECT_MONTH;
-  const target = nextTarget(progress, thresholds);
-  const scope = useAllTime ? "total" : "this month";
+  const goal = getWeeklyGoal(mission);
+  const tier = weeklyGoalTier(weekCount, goal);
 
   const titles = {
-    locked: `${mission.name} Rookie`,
-    bronze: `${mission.name} Explorer`,
-    silver: `${mission.name} Ace`,
-    gold: `${mission.name} Champion`,
+    locked: `${mission.name} Weekly Goal`,
+    bronze: `${mission.name} — Getting Started`,
+    silver: `${mission.name} — Almost There`,
+    gold: `${mission.name} — Goal Hit!`,
   };
 
   return {
@@ -104,16 +90,24 @@ function buildSubjectBadge(
     title: titles[tier],
     description:
       tier === "gold"
-        ? `${progress} ${mission.name} stars (${scope})`
-        : `${progress}/${target} ${mission.name} stars (${scope})`,
+        ? `${weekCount}/${goal} stars this week — weekly goal reached!`
+        : `${weekCount}/${goal} stars this week`,
     icon: mission.icon,
     category: "subject",
     tier,
     unlocked: tier !== "locked",
-    progress,
-    target,
+    progress: Math.min(weekCount, goal),
+    target: goal,
     missionId: mission.id,
   };
+}
+
+function weeklyGoalTier(weekCount: number, goal: number): Tier {
+  if (weekCount >= goal) return "gold";
+  const halfway = Math.max(1, Math.ceil(goal / 2));
+  if (weekCount >= halfway) return "silver";
+  if (weekCount > 0) return "bronze";
+  return "locked";
 }
 
 export function computeAchievements(
@@ -192,15 +186,14 @@ export function computeAchievements(
   ];
 
   const subjectAchievements = profileMissions.map((mission) =>
-    buildSubjectBadge(
+    buildWeeklyGoalAchievement(
       mission,
       getMissionCountInPeriod(
         dailyMissions,
         profileId,
         mission.id,
-        "month"
-      ),
-      getMissionCountAllTime(dailyMissions, profileId, mission.id)
+        "week"
+      )
     )
   );
 
@@ -277,7 +270,7 @@ export const ACHIEVEMENT_CATEGORY_LABELS: Record<
 > = {
   stars: { title: "Star Collecting", icon: "⭐" },
   streak: { title: "Streaks & Consistency", icon: "🔥" },
-  subject: { title: "Subject Badges", icon: "🎯" },
+  subject: { title: "Weekly Goals", icon: "🎯" },
   special: { title: "Special Challenges", icon: "🏆" },
 };
 

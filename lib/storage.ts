@@ -1,4 +1,5 @@
 import type { AppData } from "./types";
+import { normalizeMission } from "./mission-utils";
 
 const STORAGE_KEY = "daily_ticker_data";
 
@@ -15,7 +16,11 @@ export function loadAppData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_APP_DATA;
-    return { ...EMPTY_APP_DATA, ...JSON.parse(raw) };
+    const parsed = { ...EMPTY_APP_DATA, ...JSON.parse(raw) } as AppData;
+    return {
+      ...parsed,
+      missions: parsed.missions.map(normalizeMission),
+    };
   } catch {
     return EMPTY_APP_DATA;
   }

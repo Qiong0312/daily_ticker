@@ -22,6 +22,7 @@ export interface Mission {
   icon: string;
   color: string;
   sortOrder: number;
+  weeklyGoal?: number;
 }
 
 export interface DailyEntry {
