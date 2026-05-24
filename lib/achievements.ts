@@ -90,8 +90,8 @@ function buildWeeklyGoalAchievement(
     title: titles[tier],
     description:
       tier === "gold"
-        ? `${weekCount}/${goal} stars this week — weekly goal reached!`
-        : `${weekCount}/${goal} stars this week`,
+        ? `${weekCount}/${goal} stars this week — goal reached!`
+        : `${weekCount}/${goal} stars this week (Mon–Sun)`,
     icon: mission.icon,
     category: "subject",
     tier,

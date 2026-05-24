@@ -17,13 +17,44 @@ export function formatDisplayDate(date: Date): string {
   });
 }
 
+/** Weeks run Monday 00:00 through Sunday (calendar week, Mon start). */
+export const WEEK_STARTS_ON = 1; // Monday (Date.getDay() index)
+
 export function startOfWeek(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
+  // Sunday (0) -> go back 6 days to Monday; otherwise back to this week's Monday.
+  const diff = day === 0 ? -6 : WEEK_STARTS_ON - day;
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+export function endOfWeek(date: Date): Date {
+  const end = startOfWeek(date);
+  end.setDate(end.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+export function formatWeekRange(ref: Date = new Date()): string {
+  const start = startOfWeek(ref);
+  const end = endOfWeek(ref);
+
+  if (start.getMonth() === end.getMonth()) {
+    const month = start.toLocaleDateString("en-US", { month: "short" });
+    return `${month} ${start.getDate()}–${end.getDate()}`;
+  }
+
+  const startLabel = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const endLabel = end.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  return `${startLabel} – ${endLabel}`;
 }
 
 export function startOfMonth(date: Date): Date {
@@ -35,8 +66,10 @@ export function startOfYear(date: Date): Date {
 }
 
 export function isDateInRange(dateKey: string, start: Date, end: Date): boolean {
-  const d = parseDateKey(dateKey);
-  return d >= start && d <= end;
+  // Compare YYYY-MM-DD strings so week/month boundaries stay exact (Mon reset).
+  const startKey = formatDateKey(start);
+  const endKey = formatDateKey(end);
+  return dateKey >= startKey && dateKey <= endKey;
 }
 
 export function parseDateKey(key: string): Date {

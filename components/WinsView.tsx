@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppProvider";
 import { computeAchievements, groupAchievementsByCategory, sortAchievementsForDisplay, ACHIEVEMENT_CATEGORY_LABELS } from "@/lib/achievements";
 import {
   formatDateKey,
+  formatWeekRange,
   getDaysInMonth,
   parseDateKey,
   startOfMonth,
@@ -330,7 +331,7 @@ export function WinsView() {
             <p className="mb-4 text-xs text-purple-500">
               {category === "stars" && "Earn more stars each week, month, and year"}
               {category === "streak" && "Keep showing up — streaks take real dedication"}
-              {category === "subject" && "Hit each mission's weekly star goal"}
+              {category === "subject" && `Hit each mission's weekly goal (resets every Monday · ${formatWeekRange()})`}
               {category === "special" && "Bonus badges for big days and variety"}
             </p>
             <div className={gridClass}>

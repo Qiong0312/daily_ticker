@@ -92,7 +92,7 @@ export function MissionsView() {
             <div className="min-w-0 flex-1">
               <p className="font-bold text-purple-800">{mission.name}</p>
               <p className="text-xs font-semibold text-purple-500">
-                {getWeeklyGoal(mission)}⭐ weekly goal
+                {getWeeklyGoal(mission)}⭐ weekly goal · resets Monday
               </p>
             </div>
             <button
@@ -220,7 +220,7 @@ function MissionForm({
 
         <p className="mb-2 mt-4 text-sm font-semibold text-purple-700">Weekly star goal</p>
         <p className="mb-2 text-xs text-purple-500">
-          How many stars to aim for each week?
+          How many stars to aim for each week? Counts reset every Monday.
         </p>
         <div className="mb-4 flex flex-wrap gap-2">
           {Array.from(
