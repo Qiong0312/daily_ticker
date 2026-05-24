@@ -11,9 +11,9 @@ import type { Achievement, DailyMission, Mission } from "./types";
 
 type Tier = Achievement["tier"];
 
-const STAR_WEEK = { bronze: 20, silver: 28, gold: 35 };
-const STAR_MONTH = { bronze: 80, silver: 110, gold: 130 };
-const STAR_YEAR = { bronze: 400, silver: 800, gold: 1200 };
+const STAR_WEEK_GOAL = 35;
+const STAR_MONTH_GOAL = 100;
+const STAR_YEAR_GOAL = 1750;
 
 const STREAK_DAYS = { bronze: 3, silver: 7, gold: 14 };
 const CONSISTENT_DAYS = { bronze: 5, silver: 7, gold: 10 };
@@ -71,12 +71,74 @@ function buildTieredAchievement(
   };
 }
 
+function goalTierThresholds(goal: number): {
+  bronze: number;
+  silver: number;
+  gold: number;
+} {
+  return {
+    bronze: Math.max(1, Math.ceil(goal * 0.25)),
+    silver: Math.max(1, Math.ceil(goal * 0.5)),
+    gold: goal,
+  };
+}
+
+function goalProgressTier(progress: number, goal: number): Tier {
+  const { bronze, silver, gold } = goalTierThresholds(goal);
+  if (progress >= gold) return "gold";
+  if (progress >= silver) return "silver";
+  if (progress >= bronze) return "bronze";
+  return "locked";
+}
+
+function nextGoalTierTarget(progress: number, goal: number): number {
+  const { bronze, silver, gold } = goalTierThresholds(goal);
+  if (progress < bronze) return bronze;
+  if (progress < silver) return silver;
+  return gold;
+}
+
+function buildStarGoalAchievement(
+  id: string,
+  baseTitle: string,
+  icon: string,
+  progress: number,
+  goal: number,
+  unit: string
+): Achievement {
+  const tier = goalProgressTier(progress, goal);
+  const nextTarget = nextGoalTierTarget(progress, goal);
+
+  const titles = {
+    locked: baseTitle,
+    bronze: `${baseTitle} — Getting Started`,
+    silver: `${baseTitle} — Almost There`,
+    gold: `${baseTitle} — Goal Hit!`,
+  };
+
+  return {
+    id,
+    title: titles[tier],
+    description:
+      tier === "gold"
+        ? `${progress}/${goal} ${unit} — goal reached!`
+        : `${progress}/${nextTarget} ${unit}`,
+    icon,
+    category: "stars",
+    tier,
+    unlocked: tier !== "locked",
+    progress: Math.min(progress, goal),
+    target: goal,
+  };
+}
+
 function buildWeeklyGoalAchievement(
   mission: Mission,
   weekCount: number
 ): Achievement {
   const goal = getWeeklyGoal(mission);
-  const tier = weeklyGoalTier(weekCount, goal);
+  const tier = goalProgressTier(weekCount, goal);
+  const nextTarget = nextGoalTierTarget(weekCount, goal);
 
   const titles = {
     locked: `${mission.name} Weekly Goal`,
@@ -91,7 +153,7 @@ function buildWeeklyGoalAchievement(
     description:
       tier === "gold"
         ? `${weekCount}/${goal} stars this week — goal reached!`
-        : `${weekCount}/${goal} stars this week (Mon–Sun)`,
+        : `${weekCount}/${nextTarget} stars this week (Mon–Sun)`,
     icon: mission.icon,
     category: "subject",
     tier,
@@ -100,14 +162,6 @@ function buildWeeklyGoalAchievement(
     target: goal,
     missionId: mission.id,
   };
-}
-
-function weeklyGoalTier(weekCount: number, goal: number): Tier {
-  if (weekCount >= goal) return "gold";
-  const halfway = Math.max(1, Math.ceil(goal / 2));
-  if (weekCount >= halfway) return "silver";
-  if (weekCount > 0) return "bronze";
-  return "locked";
 }
 
 export function computeAchievements(
@@ -135,31 +189,28 @@ export function computeAchievements(
   );
 
   const starAchievements: Achievement[] = [
-    buildTieredAchievement(
+    buildStarGoalAchievement(
       "star-week",
       "Weekly Star Hunter",
       "⭐",
-      "stars",
       weekStars,
-      STAR_WEEK,
+      STAR_WEEK_GOAL,
       "stars this week"
     ),
-    buildTieredAchievement(
+    buildStarGoalAchievement(
       "star-month",
       "Monthly Star Master",
       "🌟",
-      "stars",
       monthStars,
-      STAR_MONTH,
+      STAR_MONTH_GOAL,
       "stars this month"
     ),
-    buildTieredAchievement(
+    buildStarGoalAchievement(
       "star-year",
       "Year Legend",
       "🎖️",
-      "stars",
       yearStars,
-      STAR_YEAR,
+      STAR_YEAR_GOAL,
       "stars this year"
     ),
   ];

@@ -27,9 +27,9 @@ const PERIODS: { id: Period; label: string }[] = [
 ];
 
 const TIER_COLORS: Record<Achievement["tier"], string> = {
-  bronze: "from-orange-200 to-orange-300 border-orange-300",
-  silver: "from-slate-200 to-slate-300 border-slate-400",
-  gold: "from-yellow-300 to-amber-400 border-amber-500",
+  bronze: "from-[#F8E4C8] via-[#CD9B5A] to-[#7A4A22] border-[#6B3F1A]",
+  silver: "from-sky-100 via-slate-100 to-sky-200 border-slate-400",
+  gold: "from-yellow-50 via-yellow-200 to-amber-400 border-amber-500",
   locked: "from-gray-100 to-gray-200 border-gray-200",
 };
 
