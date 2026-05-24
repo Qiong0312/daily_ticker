@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppProvider";
 import { formatDisplayDate, todayKey } from "@/lib/date-utils";
+import { missionTint } from "@/lib/color-utils";
 import { getStreak } from "@/lib/stats";
-import { MOOD_OPTIONS, WEATHER_OPTIONS } from "@/lib/types";
+import { MOOD_OPTIONS, WEATHER_OPTIONS, type Mission } from "@/lib/types";
 
 export function TodayView() {
   const {
@@ -189,49 +190,107 @@ export function TodayView() {
             Tap a mission above to add it here!
           </p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {todayMissions.map(({ missionId, mission, completed }) => (
-              <li
+              <TodayMissionRow
                 key={missionId}
-                className={`flex items-center gap-3 rounded-xl border-2 bg-white/80 p-3 ${
-                  completed ? "border-green-200 opacity-70" : "border-purple-100"
-                }`}
-              >
-                <div className="flex-1">
-                  <span
-                    className={`font-bold text-purple-800 ${
-                      completed ? "line-through" : ""
-                    }`}
-                  >
-                    {mission.icon} {mission.name}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggleComplete(missionId)}
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl transition-transform active:scale-90 ${
-                    completed
-                      ? "bg-yellow-100"
-                      : "border-2 border-dashed border-gray-300 bg-white"
-                  }`}
-                  aria-label={completed ? "Mark incomplete" : "Earn a star"}
-                >
-                  {completed ? "⭐" : "☆"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeFromToday(missionId)}
-                  className="rounded-lg px-2 py-1 text-sm text-purple-400 hover:bg-purple-50 hover:text-purple-600"
-                  aria-label="Remove from today"
-                >
-                  ✕
-                </button>
-              </li>
+                mission={mission}
+                completed={completed}
+                onToggle={() => handleToggleComplete(missionId)}
+                onRemove={() => removeFromToday(missionId)}
+              />
             ))}
           </ul>
         )}
 
       </section>
     </div>
+  );
+}
+
+function TodayMissionRow({
+  mission,
+  completed,
+  onToggle,
+  onRemove,
+}: {
+  mission: Mission;
+  completed: boolean;
+  onToggle: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <li
+      className={`relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
+        completed ? "border-amber-300/80 shadow-md" : "border-transparent shadow-sm"
+      }`}
+      style={{
+        backgroundColor: completed
+          ? missionTint(mission.color, 22)
+          : missionTint(mission.color, 38),
+      }}
+    >
+      <div
+        className="absolute bottom-0 left-0 top-0 w-1.5"
+        style={{ backgroundColor: mission.color }}
+        aria-hidden
+      />
+
+      <div className="flex items-center gap-3 p-3 pl-4">
+        <div className="relative shrink-0">
+          <span
+            className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl text-white shadow-sm transition-transform duration-300 ${
+              completed ? "scale-95 ring-2 ring-amber-300 ring-offset-1" : ""
+            }`}
+            style={{ backgroundColor: mission.color }}
+          >
+            {mission.icon}
+          </span>
+          {completed && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-300 text-xs shadow">
+              ✓
+            </span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-purple-900">{mission.name}</p>
+          {completed ? (
+            <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2 py-0.5 text-xs font-bold text-amber-700">
+              Star earned! ✨
+            </span>
+          ) : (
+            <span className="mt-0.5 text-xs font-semibold text-purple-600/80">
+              Tap the star when done
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl transition-all duration-300 active:scale-90 ${
+            completed
+              ? "bg-amber-100 shadow-inner ring-2 ring-amber-300"
+              : "border-2 border-dashed bg-white/80"
+          }`}
+          style={
+            completed ? undefined : { borderColor: missionTint(mission.color, 55) }
+          }
+          aria-label={completed ? "Mark incomplete" : "Earn a star"}
+        >
+          {completed ? "⭐" : "☆"}
+        </button>
+
+        <button
+          type="button"
+          onClick={onRemove}
+          className="shrink-0 rounded-lg px-1.5 py-1 text-sm text-purple-400/80 transition-colors hover:bg-white/60 hover:text-purple-600"
+          aria-label="Remove from today"
+        >
+          ✕
+        </button>
+      </div>
+    </li>
   );
 }
