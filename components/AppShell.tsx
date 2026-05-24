@@ -6,6 +6,7 @@ import { TodayView } from "@/components/TodayView";
 import { MissionsView } from "@/components/MissionsView";
 import { WinsView } from "@/components/WinsView";
 import { OverlayScrollbar } from "@/components/OverlayScrollbar";
+import { ProfileSwitchButton } from "@/components/ProfileSwitchButton";
 
 const TABS = [
   { id: "today" as const, label: "Today", icon: "🏠" },
@@ -29,13 +30,7 @@ export function AppShell() {
             <p className="text-xl font-bold text-purple-800">{activeProfile.name}</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={openProfilePicker}
-          className="rounded-xl bg-white/80 px-3 py-2 text-sm font-bold text-purple-700 shadow"
-        >
-          Switch 👤
-        </button>
+        <ProfileSwitchButton onClick={openProfilePicker} />
       </header>
 
       <div className="relative min-h-0 flex-1">
