@@ -82,7 +82,8 @@ struct SetMoodIntent: AppIntent {
 }
 
 struct OpenTodayIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Daily Ticker"
+    static var title: LocalizedStringResource = "Add missions"
+    static var description = IntentDescription("Open Daily Ticker on the Today tab to pick missions.")
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {

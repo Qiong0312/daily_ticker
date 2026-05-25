@@ -27,6 +27,8 @@ public class WidgetBridgePlugin: NSObject, FlutterPlugin {
             }
         case "readSnapshot":
             result(WidgetDataStore.readRaw())
+        case "consumeDeepLink":
+            result(WidgetDeepLinkStore.consume())
         default:
             result(FlutterMethodNotImplemented)
         }

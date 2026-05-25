@@ -16,7 +16,7 @@ struct TodayWidget: Widget {
             TodayWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Daily Ticker")
-        .description("Pick missions and earn stars for today.")
+        .description("Tick off today's missions. Tap + to add more in the app.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

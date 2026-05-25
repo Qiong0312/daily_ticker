@@ -47,7 +47,9 @@ class _AppWithWidgetSyncState extends State<_AppWithWidgetSync>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      context.read<AppProvider>().syncFromWidget();
+      final provider = context.read<AppProvider>();
+      provider.syncFromWidget();
+      provider.handleWidgetDeepLink();
     }
   }
 

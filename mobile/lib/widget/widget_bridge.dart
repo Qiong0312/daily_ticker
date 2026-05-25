@@ -26,6 +26,17 @@ class WidgetBridge {
     }
   }
 
+  /// Route from `dailyticker://…` after the widget + button opens the app (`today`, etc.).
+  static Future<String?> consumeDeepLink() async {
+    if (!isSupported) return null;
+    try {
+      return await _channel.invokeMethod<String>('consumeDeepLink');
+    } catch (e, st) {
+      debugPrint('WidgetBridge.consumeDeepLink failed: $e\n$st');
+      return null;
+    }
+  }
+
   /// If the widget edited data, merge into [data] and return updated app data.
   static Future<AppData> importIfNeeded(AppData data) async {
     if (!isSupported) return data;

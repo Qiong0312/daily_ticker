@@ -35,6 +35,7 @@ class AppProvider extends ChangeNotifier {
     ready = true;
     await saveAppData(_data);
     await WidgetBridge.exportSnapshot(_data);
+    await handleWidgetDeepLink();
     notifyListeners();
   }
 
@@ -46,6 +47,16 @@ class AppProvider extends ChangeNotifier {
       _data = merged;
       await saveAppData(_data);
       await WidgetBridge.exportSnapshot(_data);
+      notifyListeners();
+    }
+  }
+
+  /// After widget + button (`dailyticker://today`), switch to Today tab.
+  Future<void> handleWidgetDeepLink() async {
+    if (!ready) return;
+    final route = await WidgetBridge.consumeDeepLink();
+    if (route == 'today' && tab != AppTab.today) {
+      tab = AppTab.today;
       notifyListeners();
     }
   }

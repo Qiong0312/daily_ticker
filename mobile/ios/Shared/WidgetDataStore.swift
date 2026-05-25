@@ -140,3 +140,23 @@ enum WidgetStoreError: Error {
     case noSnapshot
     case missionNotOnToday
 }
+
+// MARK: - Deep link (widget + button → app)
+
+enum WidgetDeepLinkStore {
+    private static let key = "pending_deep_link"
+
+    private static var defaults: UserDefaults? {
+        UserDefaults(suiteName: WidgetDataStore.appGroupId)
+    }
+
+    static func enqueue(host: String?) {
+        defaults?.set(host ?? "today", forKey: key)
+    }
+
+    static func consume() -> String? {
+        guard let value = defaults?.string(forKey: key) else { return nil }
+        defaults?.removeObject(forKey: key)
+        return value
+    }
+}
