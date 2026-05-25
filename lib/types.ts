@@ -50,17 +50,25 @@ export interface AppData {
 
 export type AchievementCategory = "stars" | "streak" | "subject" | "special";
 
+export interface WeeklyGoalMedalCounts {
+  bronze: number;
+  silver: number;
+  gold: number;
+  diamond: number;
+}
+
 export interface Achievement {
   id: string;
   title: string;
   description: string;
   icon: string;
   category: AchievementCategory;
-  tier: "bronze" | "silver" | "gold" | "locked";
+  tier: "diamond" | "bronze" | "silver" | "gold" | "locked";
   unlocked: boolean;
   progress: number;
   target: number;
   missionId?: string;
+  growthStyle?: boolean;
 }
 
 export const WEATHER_OPTIONS: { value: Weather; icon: string; label: string }[] = [

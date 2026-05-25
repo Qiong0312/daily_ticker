@@ -69,6 +69,11 @@ class _WinsViewState extends State<WinsView> {
       profileId,
     );
     final achievementGroups = groupAchievementsByCategory(achievements);
+    final weeklyGoalMedals = computeWeeklyGoalLifetimeMedals(
+      provider.data.dailyMissions,
+      missions,
+      profileId,
+    );
     final activeDays = getActiveDaysInMonth(
       provider.data.dailyMissions,
       profileId,
@@ -411,7 +416,10 @@ class _WinsViewState extends State<WinsView> {
           ),
         ],
         ...AchievementCategory.values.map((category) {
-          final items = sortAchievementsForDisplay(achievementGroups[category]!);
+          final items = sortAchievementsForDisplay(
+            achievementGroups[category]!,
+            category: category,
+          );
           if (items.isEmpty) return const SizedBox.shrink();
           final label = achievementCategoryLabels[category]!;
 
@@ -435,6 +443,10 @@ class _WinsViewState extends State<WinsView> {
                     achievementCategorySubtitle(category, formatWeekRange()),
                     style: const TextStyle(fontSize: 12, color: AppColors.purple500),
                   ),
+                  if (category == AchievementCategory.subject) ...[
+                    const SizedBox(height: 10),
+                    _WeeklyGoalMedalTotals(counts: weeklyGoalMedals),
+                  ],
                   const SizedBox(height: 12),
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -515,6 +527,172 @@ class _AlignedAchievementGrid extends StatelessWidget {
     }
 
     return Column(children: rows);
+  }
+}
+
+BoxDecoration _medalTierChipDecoration(AchievementTier tier) {
+  switch (tier) {
+    case AchievementTier.diamond:
+      return BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE0F7FA), Color(0xFF80DEEA), Color(0xFF4DD0E1)],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Color(0xFF26C6DA), width: 1.5),
+      );
+    case AchievementTier.bronze:
+      return BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF8E4C8), Color(0xFFCD9B5A), Color(0xFF7A4A22)],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Color(0xFF6B3F1A), width: 1.5),
+      );
+    case AchievementTier.silver:
+      return BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE0F2FE), Color(0xFFF1F5F9), Color(0xFFBAE6FD)],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Color(0xFF94A3B8), width: 1.5),
+      );
+    case AchievementTier.gold:
+      return BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFEFCE8), Color(0xFFFEF08A), Color(0xFFFBBF24)],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Color(0xFFF59E0B), width: 1.5),
+      );
+    case AchievementTier.locked:
+      return BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+      );
+  }
+}
+
+class _WeeklyGoalMedalTotals extends StatelessWidget {
+  const _WeeklyGoalMedalTotals({required this.counts});
+
+  final WeeklyGoalMedalCounts counts;
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (tier: AchievementTier.bronze, label: 'Bronze', emoji: '🥉'),
+      (tier: AchievementTier.silver, label: 'Silver', emoji: '🥈'),
+      (tier: AchievementTier.gold, label: 'Gold', emoji: '🥇'),
+      (tier: AchievementTier.diamond, label: 'Diamond', emoji: '💎'),
+    ];
+
+    int countFor(AchievementTier tier) => switch (tier) {
+          AchievementTier.bronze => counts.bronze,
+          AchievementTier.silver => counts.silver,
+          AchievementTier.gold => counts.gold,
+          AchievementTier.diamond => counts.diamond,
+          _ => 0,
+        };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F3FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9D5FF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ALL-TIME MEDALS COLLECTED',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: AppColors.purple500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                Expanded(
+                  child: _MedalCountChip(
+                    tier: items[i].tier,
+                    label: items[i].label,
+                    emoji: items[i].emoji,
+                    count: countFor(items[i].tier),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedalCountChip extends StatelessWidget {
+  const _MedalCountChip({
+    required this.tier,
+    required this.label,
+    required this.emoji,
+    required this.count,
+  });
+
+  final AchievementTier tier;
+  final String label;
+  final String emoji;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: _medalTierChipDecoration(tier),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.purple800,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.purple900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -607,11 +785,17 @@ class _AchievementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tier = achievement.tier;
     final unlocked = achievement.unlocked;
+    final growthStyle = achievement.growthStyle;
+    final isMaster = achievement.progress >= achievement.target;
     final progressPct = achievement.target > 0
         ? (achievement.progress / achievement.target).clamp(0.0, 1.0)
         : 0.0;
+    final hideProgressBar = growthStyle
+        ? !isMaster
+        : tier == AchievementTier.gold;
 
-    final decoration = _tierDecoration(tier, unlocked);
+    final decoration =
+        growthStyle ? _neutralAchievementDecoration() : _tierDecoration(tier, unlocked);
     final descTop = stretch ? 5.0 : 0.0;
     final hintTop = stretch ? 5.0 : 2.0;
     final badgeTop = stretch ? 6.0 : 2.0;
@@ -661,7 +845,7 @@ class _AchievementCard extends StatelessWidget {
                       ),
                     );
                   }),
-                  if (unlocked)
+                  if (!growthStyle && unlocked)
                     Padding(
                       padding: EdgeInsets.only(top: badgeTop),
                       child: Container(
@@ -671,7 +855,9 @@ class _AchievementCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          '${tier.name} unlocked',
+                          tier == AchievementTier.diamond
+                              ? '💎 Diamond bonus!'
+                              : '${tier.name} unlocked',
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
@@ -680,7 +866,7 @@ class _AchievementCard extends StatelessWidget {
                         ),
                       ),
                     )
-                  else
+                  else if (!growthStyle && !unlocked)
                     Padding(
                       padding: EdgeInsets.only(top: badgeTop),
                       child: const Text(
@@ -698,7 +884,7 @@ class _AchievementCard extends StatelessWidget {
           ],
         ),
         if (stretch) const Spacer(),
-        if (tier != AchievementTier.gold)
+        if (!hideProgressBar)
           Padding(
             padding: EdgeInsets.only(top: stretch ? 8 : 6),
             child: ClipRRect(
@@ -727,20 +913,40 @@ class _AchievementCard extends StatelessWidget {
     );
   }
 
+  BoxDecoration _neutralAchievementDecoration() {
+    return BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
+      ),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Color(0xFFE5E7EB), width: 2),
+    );
+  }
+
   BoxDecoration _tierDecoration(AchievementTier tier, bool unlocked) {
     if (!unlocked) {
-      return BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 2),
-      );
+      return _neutralAchievementDecoration();
     }
 
     switch (tier) {
+      case AchievementTier.diamond:
+        return BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE0F7FA), Color(0xFF80DEEA), Color(0xFF4DD0E1)],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Color(0xFF26C6DA), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4DD0E1).withValues(alpha: 0.35),
+              blurRadius: 8,
+            ),
+          ],
+        );
       case AchievementTier.bronze:
         return BoxDecoration(
           gradient: const LinearGradient(

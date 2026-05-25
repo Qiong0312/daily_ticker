@@ -8,7 +8,21 @@ enum Period { week, month, year }
 
 enum AchievementCategory { stars, streak, subject, special }
 
-enum AchievementTier { bronze, silver, gold, locked }
+enum AchievementTier { diamond, bronze, silver, gold, locked }
+
+class WeeklyGoalMedalCounts {
+  const WeeklyGoalMedalCounts({
+    this.bronze = 0,
+    this.silver = 0,
+    this.gold = 0,
+    this.diamond = 0,
+  });
+
+  final int bronze;
+  final int silver;
+  final int gold;
+  final int diamond;
+}
 
 class Profile {
   const Profile({
@@ -273,6 +287,7 @@ class Achievement {
     required this.progress,
     required this.target,
     this.missionId,
+    this.growthStyle = false,
   });
 
   final String id;
@@ -285,6 +300,8 @@ class Achievement {
   final int progress;
   final int target;
   final String? missionId;
+  /// Rank-based streak cards (no bronze/silver/gold medals).
+  final bool growthStyle;
 }
 
 class WeatherOption {

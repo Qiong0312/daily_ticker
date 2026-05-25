@@ -6,29 +6,55 @@ import {
   getStreak,
   hasCompletedAllMissionsInPeriod,
 } from "./stats";
-import { getWeeklyGoal } from "./mission-utils";
-import type { Achievement, DailyMission, Mission } from "./types";
+import { DEFAULT_WEEKLY_GOAL, getWeeklyGoal } from "./mission-utils";
+import { formatDateKey, parseDateKey, startOfWeek } from "./date-utils";
+import type {
+  Achievement,
+  DailyMission,
+  Mission,
+  WeeklyGoalMedalCounts,
+} from "./types";
 
-type Tier = Achievement["tier"];
+/** Medal tiers from thresholds; diamond is only for weekly goals that exceed the target. */
+type MedalTier = Exclude<Achievement["tier"], "diamond">;
 
 const STAR_WEEK_GOAL = 35;
 const STAR_MONTH_GOAL = 100;
 const STAR_YEAR_GOAL = 1750;
 
-const STREAK_DAYS = { bronze: 3, silver: 7, gold: 14 };
-const CONSISTENT_DAYS = { bronze: 5, silver: 7, gold: 10 };
+const GROWTH_STREAK_MAX = 365;
+
+const STREAK_KEEPER_PATH = [
+  { days: 0, rank: "Explorer", icon: "🌱" },
+  { days: 7, rank: "Adventurer", icon: "🌿" },
+  { days: 14, rank: "Trailblazer", icon: "🥾" },
+  { days: 30, rank: "Champion", icon: "🏅" },
+  { days: 60, rank: "Legend", icon: "🌟" },
+  { days: 365, rank: "Master", icon: "👑" },
+] as const;
+
+const STEADY_STAR_PATH = [
+  { days: 0, rank: "Explorer", icon: "🌱" },
+  { days: 5, rank: "Adventurer", icon: "🌿" },
+  { days: 10, rank: "Trailblazer", icon: "🥾" },
+  { days: 21, rank: "Champion", icon: "🏅" },
+  { days: 45, rank: "Legend", icon: "🌟" },
+  { days: 365, rank: "Master", icon: "👑" },
+] as const;
+
+type GrowthMilestone = { days: number; rank: string; icon: string };
 
 function tierFromThresholds(
   value: number,
   thresholds: { bronze: number; silver: number; gold: number }
-): Tier {
+): MedalTier {
   if (value >= thresholds.gold) return "gold";
   if (value >= thresholds.silver) return "silver";
   if (value >= thresholds.bronze) return "bronze";
   return "locked";
 }
 
-function tierLabel(tier: Tier): string {
+function tierLabel(tier: MedalTier): string {
   if (tier === "locked") return "";
   return tier.charAt(0).toUpperCase() + tier.slice(1);
 }
@@ -81,12 +107,111 @@ function goalTierThresholds(goal: number): {
   };
 }
 
-function goalProgressTier(progress: number, goal: number): Tier {
+function goalProgressTier(progress: number, goal: number): MedalTier {
   const { bronze, silver, gold } = goalTierThresholds(goal);
   if (progress >= gold) return "gold";
   if (progress >= silver) return "silver";
   if (progress >= bronze) return "bronze";
   return "locked";
+}
+
+/** Highest weekly-goal tier for a mission in one calendar week (Mon–Sun). */
+export function weeklyGoalTierForCount(
+  weekCount: number,
+  goal: number
+): Achievement["tier"] {
+  if (weekCount > goal) return "diamond";
+  return goalProgressTier(weekCount, goal);
+}
+
+/** One medal per mission per week (highest tier that week), summed across all weeks. */
+export function computeWeeklyGoalLifetimeMedals(
+  dailyMissions: DailyMission[],
+  missions: Mission[],
+  profileId: string
+): WeeklyGoalMedalCounts {
+  const counts: WeeklyGoalMedalCounts = {
+    bronze: 0,
+    silver: 0,
+    gold: 0,
+    diamond: 0,
+  };
+  const missionById = new Map(missions.map((m) => [m.id, m]));
+  const weekMissionCounts = new Map<string, Map<string, number>>();
+
+  for (const dm of dailyMissions) {
+    if (dm.profileId !== profileId || !dm.completed) continue;
+    const weekKey = formatDateKey(startOfWeek(parseDateKey(dm.date)));
+    let byMission = weekMissionCounts.get(weekKey);
+    if (!byMission) {
+      byMission = new Map();
+      weekMissionCounts.set(weekKey, byMission);
+    }
+    byMission.set(dm.missionId, (byMission.get(dm.missionId) ?? 0) + 1);
+  }
+
+  for (const byMission of weekMissionCounts.values()) {
+    for (const [missionId, weekCount] of byMission) {
+      const mission = missionById.get(missionId);
+      const goal = mission ? getWeeklyGoal(mission) : DEFAULT_WEEKLY_GOAL;
+      const tier = weeklyGoalTierForCount(weekCount, goal);
+      if (tier === "locked") continue;
+      counts[tier]++;
+    }
+  }
+
+  return counts;
+}
+
+function growthRankTitle(
+  progress: number,
+  path: readonly GrowthMilestone[],
+  baseTitle: string
+): string {
+  let rank = path[0].rank;
+  for (const milestone of path) {
+    if (progress >= milestone.days) rank = milestone.rank;
+  }
+  return `${baseTitle} — ${rank}`;
+}
+
+function growthRankIcon(
+  progress: number,
+  path: readonly GrowthMilestone[]
+): string {
+  let icon = path[0].icon;
+  for (const milestone of path) {
+    if (progress >= milestone.days) icon = milestone.icon;
+  }
+  return icon;
+}
+
+function buildGrowthStreakAchievement(
+  id: string,
+  baseTitle: string,
+  progress: number,
+  path: readonly GrowthMilestone[],
+  unit: string
+): Achievement {
+  const title = growthRankTitle(progress, path, baseTitle);
+  const max = GROWTH_STREAK_MAX;
+  const capped = Math.min(progress, max);
+  const isMaster = capped >= max;
+
+  return {
+    id,
+    title,
+    description: isMaster
+      ? `${capped}/${max} ${unit} — Master achieved!`
+      : `${capped}/${max} ${unit}`,
+    icon: growthRankIcon(progress, path),
+    category: "streak",
+    tier: "locked",
+    unlocked: true,
+    progress: capped,
+    target: max,
+    growthStyle: true,
+  };
 }
 
 function buildStarGoalAchievement(
@@ -128,7 +253,22 @@ function buildWeeklyGoalAchievement(
   weekCount: number
 ): Achievement {
   const goal = getWeeklyGoal(mission);
-  const tier = goalProgressTier(weekCount, goal);
+  const tier = weeklyGoalTierForCount(weekCount, goal);
+
+  if (tier === "diamond") {
+    return {
+      id: `subject-${mission.id}`,
+      title: `${mission.name} — Diamond`,
+      description: `${weekCount}/${goal} stars this week — hidden bonus! You beat your goal!`,
+      icon: mission.icon,
+      category: "subject",
+      tier: "diamond",
+      unlocked: true,
+      progress: weekCount,
+      target: goal,
+      missionId: mission.id,
+    };
+  }
   const thresholds = goalTierThresholds(goal);
 
   const titles = {
@@ -207,23 +347,19 @@ export function computeAchievements(
   ];
 
   const streakAchievements: Achievement[] = [
-    buildTieredAchievement(
+    buildGrowthStreakAchievement(
       "streak-active",
       "Streak Keeper",
-      "🔥",
-      "streak",
       streak,
-      STREAK_DAYS,
+      STREAK_KEEPER_PATH,
       "day streak"
     ),
-    buildTieredAchievement(
+    buildGrowthStreakAchievement(
       "streak-consistent",
       "Steady Star",
-      "💪",
-      "streak",
       consistentStreak,
-      CONSISTENT_DAYS,
-      "days with 4+ stars"
+      STEADY_STAR_PATH,
+      "days with 4+ stars in a row"
     ),
   ];
 
@@ -316,12 +452,40 @@ export const ACHIEVEMENT_CATEGORY_LABELS: Record<
   special: { title: "Special Challenges", icon: "🏆" },
 };
 
+const STAR_COLLECTING_DISPLAY_ORDER = [
+  "star-week",
+  "star-month",
+  "star-year",
+] as const;
+
+const STREAK_DISPLAY_ORDER = ["streak-active", "streak-consistent"] as const;
+
 export function sortAchievementsForDisplay(
-  achievements: Achievement[]
+  achievements: Achievement[],
+  category?: Achievement["category"]
 ): Achievement[] {
-  const tierOrder = { gold: 0, silver: 1, bronze: 2, locked: 3 };
+  const tierOrder = { diamond: -1, gold: 0, silver: 1, bronze: 2, locked: 3 };
 
   return [...achievements].sort((a, b) => {
+    if (category === "stars") {
+      const aIdx = STAR_COLLECTING_DISPLAY_ORDER.indexOf(
+        a.id as (typeof STAR_COLLECTING_DISPLAY_ORDER)[number]
+      );
+      const bIdx = STAR_COLLECTING_DISPLAY_ORDER.indexOf(
+        b.id as (typeof STAR_COLLECTING_DISPLAY_ORDER)[number]
+      );
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    }
+    if (category === "streak") {
+      const aIdx = STREAK_DISPLAY_ORDER.indexOf(
+        a.id as (typeof STREAK_DISPLAY_ORDER)[number]
+      );
+      const bIdx = STREAK_DISPLAY_ORDER.indexOf(
+        b.id as (typeof STREAK_DISPLAY_ORDER)[number]
+      );
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    }
+
     const tierDiff = tierOrder[a.tier] - tierOrder[b.tier];
     if (tierDiff !== 0) return tierDiff;
     const aRatio = a.target > 0 ? a.progress / a.target : 0;

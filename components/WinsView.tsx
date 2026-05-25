@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppProvider";
-import { computeAchievements, groupAchievementsByCategory, sortAchievementsForDisplay, ACHIEVEMENT_CATEGORY_LABELS } from "@/lib/achievements";
+import {
+  computeAchievements,
+  computeWeeklyGoalLifetimeMedals,
+  groupAchievementsByCategory,
+  sortAchievementsForDisplay,
+  ACHIEVEMENT_CATEGORY_LABELS,
+} from "@/lib/achievements";
 import {
   formatDateKey,
   formatWeekRange,
@@ -27,6 +33,7 @@ const PERIODS: { id: Period; label: string }[] = [
 ];
 
 const TIER_COLORS: Record<Achievement["tier"], string> = {
+  diamond: "from-cyan-50 via-sky-200 to-cyan-300 border-cyan-400 shadow-md shadow-cyan-200/50",
   bronze: "from-[#F8E4C8] via-[#CD9B5A] to-[#7A4A22] border-[#6B3F1A]",
   silver: "from-sky-100 via-slate-100 to-sky-200 border-slate-400",
   gold: "from-yellow-50 via-yellow-200 to-amber-400 border-amber-500",
@@ -116,6 +123,11 @@ export function WinsView() {
     activeProfile.id
   );
   const achievementGroups = groupAchievementsByCategory(achievements);
+  const weeklyGoalMedals = computeWeeklyGoalLifetimeMedals(
+    data.dailyMissions,
+    missions,
+    activeProfile.id
+  );
 
   const activeDays = getActiveDaysInMonth(
     data.dailyMissions,
@@ -315,13 +327,15 @@ export function WinsView() {
       )}
 
       {CATEGORY_ORDER.map((category) => {
-        const items = sortAchievementsForDisplay(achievementGroups[category]);
+        const items = sortAchievementsForDisplay(achievementGroups[category], category);
         if (items.length === 0) return null;
         const label = ACHIEVEMENT_CATEGORY_LABELS[category];
         const gridClass =
           category === "subject"
-            ? "grid grid-cols-2 gap-3"
-            : "grid grid-cols-1 gap-3 sm:grid-cols-2";
+            ? "grid grid-cols-2 items-stretch gap-3"
+            : category === "streak"
+              ? "grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2"
+              : "grid grid-cols-1 gap-3 sm:grid-cols-2";
 
         return (
           <section key={category} className="card border-orange-300">
@@ -330,10 +344,14 @@ export function WinsView() {
             </h3>
             <p className="mb-4 text-xs text-purple-500">
               {category === "stars" && "Earn more stars each week, month, and year"}
-              {category === "streak" && "Keep showing up — streaks take real dedication"}
-              {category === "subject" && `Hit each mission's weekly goal (resets every Monday · ${formatWeekRange()})`}
+              {category === "streak" && "Build your streak — grow from Explorer to Master (up to 365 days)"}
+              {category === "subject" &&
+                `Hit each mission's weekly goal (resets Monday · ${formatWeekRange()}) — beat your goal for a hidden 💎 Diamond!`}
               {category === "special" && "Bonus badges for big days and variety"}
             </p>
+            {category === "subject" && (
+              <WeeklyGoalMedalTotals counts={weeklyGoalMedals} />
+            )}
             <div className={gridClass}>
               {items.map((a) => (
                 <AchievementCard key={a.id} achievement={a} />
@@ -346,18 +364,65 @@ export function WinsView() {
   );
 }
 
+function WeeklyGoalMedalTotals({
+  counts,
+}: {
+  counts: ReturnType<typeof computeWeeklyGoalLifetimeMedals>;
+}) {
+  const items = [
+    { tier: "bronze" as const, label: "Bronze", emoji: "🥉", count: counts.bronze },
+    { tier: "silver" as const, label: "Silver", emoji: "🥈", count: counts.silver },
+    { tier: "gold" as const, label: "Gold", emoji: "🥇", count: counts.gold },
+    { tier: "diamond" as const, label: "Diamond", emoji: "💎", count: counts.diamond },
+  ];
+
+  return (
+    <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50/90 px-3 py-2.5">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-purple-500">
+        All-time medals collected
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {items.map(({ tier, label, emoji, count }) => (
+          <div
+            key={tier}
+            className={`flex items-center gap-2 rounded-lg border-2 bg-gradient-to-br px-2 py-1.5 ${TIER_COLORS[tier]}`}
+          >
+            <span className="text-lg leading-none">{emoji}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-purple-800">{label}</p>
+              <p className="text-sm font-extrabold tabular-nums text-purple-900">
+                {count}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AchievementCard({ achievement }: { achievement: Achievement }) {
-  const { tier, unlocked, progress, target, icon, title, description } =
+  const { tier, unlocked, progress, target, icon, title, description, growthStyle } =
     achievement;
   const progressPct = target > 0 ? Math.min(100, (progress / target) * 100) : 0;
+  const isMaster = progress >= target;
+  const cardClass = `rounded-2xl border-2 bg-gradient-to-br p-4 ${
+    growthStyle
+      ? TIER_COLORS.locked
+      : unlocked
+        ? TIER_COLORS[tier]
+        : `${TIER_COLORS.locked} opacity-80`
+  }`;
+
+  const showProgressBar = growthStyle ? !isMaster : tier !== "gold";
+  const isDiamond = tier === "diamond";
+  const reserveProgressSpace = growthStyle;
 
   return (
     <div
-      className={`rounded-2xl border-2 bg-gradient-to-br p-4 ${
-        unlocked ? TIER_COLORS[tier] : `${TIER_COLORS.locked} opacity-80`
-      }`}
+      className={`${cardClass} ${growthStyle ? "flex h-full min-h-full flex-col" : ""}`}
     >
-      <div className="flex items-start gap-3">
+      <div className={`flex items-start gap-3 ${growthStyle ? "flex-1" : ""}`}>
         <span className={`text-3xl ${unlocked ? "" : "grayscale opacity-50"}`}>
           {icon}
         </span>
@@ -375,24 +440,27 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
               {line}
             </p>
           ))}
-          {unlocked ? (
+          {!growthStyle && unlocked ? (
             <span className="mt-1 inline-block rounded-full bg-white/60 px-2 py-0.5 text-xs font-bold capitalize text-green-700">
-              {tier} unlocked
+              {isDiamond ? "💎 Diamond bonus!" : `${tier} unlocked`}
             </span>
-          ) : (
+          ) : !growthStyle ? (
             <span className="mt-1 inline-block text-xs font-semibold text-purple-500">
               Keep going!
             </span>
-          )}
+          ) : null}
         </div>
       </div>
-      {tier !== "gold" && (
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/60">
+      {showProgressBar && (
+        <div className="mt-3 h-2 shrink-0 overflow-hidden rounded-full bg-white/60">
           <div
             className="h-full rounded-full bg-gradient-to-r from-purple-400 to-pink-400 transition-all"
             style={{ width: `${progressPct}%` }}
           />
         </div>
+      )}
+      {reserveProgressSpace && isMaster && (
+        <div className="mt-3 h-2 shrink-0" aria-hidden />
       )}
     </div>
   );

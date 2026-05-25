@@ -1,13 +1,33 @@
 import '../data/defaults.dart';
 import '../models/types.dart';
+import '../utils/date_utils.dart';
 import '../utils/stats.dart';
 
 const starWeekGoal = 35;
 const starMonthGoal = 100;
 const starYearGoal = 1750;
 
-const streakDays = (bronze: 3, silver: 7, gold: 14);
-const consistentDays = (bronze: 5, silver: 7, gold: 10);
+const growthStreakMax = 365;
+
+/// Consecutive days with at least one star (Streak Keeper).
+const streakKeeperPath = [
+  (days: 0, rank: 'Explorer', icon: '🌱'),
+  (days: 7, rank: 'Adventurer', icon: '🌿'),
+  (days: 14, rank: 'Trailblazer', icon: '🥾'),
+  (days: 30, rank: 'Champion', icon: '🏅'),
+  (days: 60, rank: 'Legend', icon: '🌟'),
+  (days: 365, rank: 'Master', icon: '👑'),
+];
+
+/// Longest run of consecutive days with 4+ stars (Steady Star).
+const steadyStarPath = [
+  (days: 0, rank: 'Explorer', icon: '🌱'),
+  (days: 5, rank: 'Adventurer', icon: '🌿'),
+  (days: 10, rank: 'Trailblazer', icon: '🥾'),
+  (days: 21, rank: 'Champion', icon: '🏅'),
+  (days: 45, rank: 'Legend', icon: '🌟'),
+  (days: 365, rank: 'Master', icon: '👑'),
+];
 
 AchievementTier tierFromThresholds(
   int value,
@@ -71,6 +91,61 @@ AchievementTier goalProgressTier(int progress, int goal) {
   return AchievementTier.locked;
 }
 
+/// Highest weekly-goal tier for a mission in one calendar week (Mon–Sun).
+AchievementTier weeklyGoalTierForCount(int weekCount, int goal) {
+  if (weekCount > goal) return AchievementTier.diamond;
+  return goalProgressTier(weekCount, goal);
+}
+
+/// One medal per mission per week (highest tier that week), summed across all weeks.
+WeeklyGoalMedalCounts computeWeeklyGoalLifetimeMedals(
+  List<DailyMission> dailyMissions,
+  List<Mission> missions,
+  String profileId,
+) {
+  final missionById = {for (final m in missions) m.id: m};
+  final weekMissionCounts = <String, Map<String, int>>{};
+
+  for (final dm in dailyMissions) {
+    if (dm.profileId != profileId || !dm.completed) continue;
+    final weekKey = formatDateKey(startOfWeek(parseDateKey(dm.date)));
+    final byMission = weekMissionCounts.putIfAbsent(weekKey, () => {});
+    byMission[dm.missionId] = (byMission[dm.missionId] ?? 0) + 1;
+  }
+
+  var bronze = 0;
+  var silver = 0;
+  var gold = 0;
+  var diamond = 0;
+
+  for (final byMission in weekMissionCounts.values) {
+    for (final entry in byMission.entries) {
+      final mission = missionById[entry.key];
+      final goal =
+          mission != null ? getWeeklyGoal(mission) : defaultWeeklyGoal;
+      switch (weeklyGoalTierForCount(entry.value, goal)) {
+        case AchievementTier.bronze:
+          bronze++;
+        case AchievementTier.silver:
+          silver++;
+        case AchievementTier.gold:
+          gold++;
+        case AchievementTier.diamond:
+          diamond++;
+        default:
+          break;
+      }
+    }
+  }
+
+  return WeeklyGoalMedalCounts(
+    bronze: bronze,
+    silver: silver,
+    gold: gold,
+    diamond: diamond,
+  );
+}
+
 Achievement buildStarGoalAchievement({
   required String id,
   required String baseTitle,
@@ -104,9 +179,76 @@ Achievement buildStarGoalAchievement({
   );
 }
 
+String growthRankTitle(
+  int progress,
+  List<({int days, String rank, String icon})> path,
+  String baseTitle,
+) {
+  var rank = path.first.rank;
+  for (final milestone in path) {
+    if (progress >= milestone.days) rank = milestone.rank;
+  }
+  return '$baseTitle — $rank';
+}
+
+String growthRankIcon(
+  int progress,
+  List<({int days, String rank, String icon})> path,
+) {
+  var icon = path.first.icon;
+  for (final milestone in path) {
+    if (progress >= milestone.days) icon = milestone.icon;
+  }
+  return icon;
+}
+
+Achievement buildGrowthStreakAchievement({
+  required String id,
+  required String baseTitle,
+  required int progress,
+  required List<({int days, String rank, String icon})> path,
+  required String unit,
+}) {
+  final title = growthRankTitle(progress, path, baseTitle);
+  final max = growthStreakMax;
+  final capped = progress.clamp(0, max);
+  final isMaster = capped >= max;
+
+  return Achievement(
+    id: id,
+    title: title,
+    description: isMaster
+        ? '$capped/$max $unit — Master achieved!'
+        : '$capped/$max $unit',
+    icon: growthRankIcon(progress, path),
+    category: AchievementCategory.streak,
+    tier: AchievementTier.locked,
+    unlocked: true,
+    progress: capped,
+    target: max,
+    growthStyle: true,
+  );
+}
+
 Achievement buildWeeklyGoalAchievement(Mission mission, int weekCount) {
   final goal = getWeeklyGoal(mission);
-  final tier = goalProgressTier(weekCount, goal);
+  final tier = weeklyGoalTierForCount(weekCount, goal);
+
+  if (tier == AchievementTier.diamond) {
+    return Achievement(
+      id: 'subject-${mission.id}',
+      title: '${mission.name} — Diamond',
+      description:
+          '$weekCount/$goal stars this week — hidden bonus! You beat your goal!',
+      icon: mission.icon,
+      category: AchievementCategory.subject,
+      tier: AchievementTier.diamond,
+      unlocked: true,
+      progress: weekCount,
+      target: goal,
+      missionId: mission.id,
+    );
+  }
   final thresholds = goalTierThresholds(goal);
 
   final titles = {
@@ -182,23 +324,19 @@ List<Achievement> computeAchievements(
   ];
 
   final streakAchievements = [
-    buildTieredAchievement(
+    buildGrowthStreakAchievement(
       id: 'streak-active',
-      title: 'Streak Keeper',
-      icon: '🔥',
-      category: AchievementCategory.streak,
+      baseTitle: 'Streak Keeper',
       progress: streak,
-      thresholds: streakDays,
+      path: streakKeeperPath,
       unit: 'day streak',
     ),
-    buildTieredAchievement(
+    buildGrowthStreakAchievement(
       id: 'streak-consistent',
-      title: 'Steady Star',
-      icon: '💪',
-      category: AchievementCategory.streak,
+      baseTitle: 'Steady Star',
       progress: consistentStreak,
-      thresholds: consistentDays,
-      unit: 'days with 4+ stars',
+      path: steadyStarPath,
+      unit: 'days with 4+ stars in a row',
     ),
   ];
 
@@ -292,8 +430,16 @@ const achievementCategoryLabels = {
   AchievementCategory.special: (title: 'Special Challenges', icon: '🏆'),
 };
 
-List<Achievement> sortAchievementsForDisplay(List<Achievement> achievements) {
+const starCollectingDisplayOrder = ['star-week', 'star-month', 'star-year'];
+
+const streakDisplayOrder = ['streak-active', 'streak-consistent'];
+
+List<Achievement> sortAchievementsForDisplay(
+  List<Achievement> achievements, {
+  AchievementCategory? category,
+}) {
   const tierOrder = {
+    AchievementTier.diamond: -1,
     AchievementTier.gold: 0,
     AchievementTier.silver: 1,
     AchievementTier.bronze: 2,
@@ -302,6 +448,21 @@ List<Achievement> sortAchievementsForDisplay(List<Achievement> achievements) {
 
   final sorted = List<Achievement>.from(achievements);
   sorted.sort((a, b) {
+    if (category == AchievementCategory.stars) {
+      final aIdx = starCollectingDisplayOrder.indexOf(a.id);
+      final bIdx = starCollectingDisplayOrder.indexOf(b.id);
+      if (aIdx != -1 && bIdx != -1) return aIdx.compareTo(bIdx);
+    }
+    if (category == AchievementCategory.streak) {
+      final aIdx = streakDisplayOrder.indexOf(a.id);
+      final bIdx = streakDisplayOrder.indexOf(b.id);
+      if (aIdx != -1 && bIdx != -1) return aIdx.compareTo(bIdx);
+    }
+
+    if (a.growthStyle && b.growthStyle) {
+      return b.progress.compareTo(a.progress);
+    }
+
     final tierDiff = tierOrder[a.tier]! - tierOrder[b.tier]!;
     if (tierDiff != 0) return tierDiff;
     final aRatio = a.target > 0 ? a.progress / a.target : 0.0;
@@ -316,9 +477,9 @@ String achievementCategorySubtitle(AchievementCategory category, String weekRang
     case AchievementCategory.stars:
       return 'Earn more stars each week, month, and year';
     case AchievementCategory.streak:
-      return 'Keep showing up — streaks take real dedication';
+      return 'Build your streak — grow from Explorer to Master (up to 365 days)';
     case AchievementCategory.subject:
-      return "Hit each mission's weekly goal (resets every Monday · $weekRange)";
+      return "Hit each mission's weekly goal (resets Monday · $weekRange) — beat your goal for a hidden 💎 Diamond!";
     case AchievementCategory.special:
       return 'Bonus badges for big days and variety';
   }
