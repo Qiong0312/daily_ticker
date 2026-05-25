@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -56,12 +57,37 @@ class _AppWithWidgetSyncState extends State<_AppWithWidgetSync>
       title: 'Daily Ticker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(),
-      home: Center(
+      home: const _AppRoot(),
+    );
+  }
+}
+
+/// Fills the device on phone/tablet; keeps a phone-width column on Flutter web only.
+class _AppRoot extends StatelessWidget {
+  const _AppRoot();
+
+  static const _webMaxWidth = 512.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = const DailyTickerApp();
+
+    if (kIsWeb) {
+      return Container(
+        decoration: AppTheme.shellGradient,
+        alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 512),
-          child: DailyTickerApp(),
+          constraints: const BoxConstraints(maxWidth: _webMaxWidth),
+          child: app,
         ),
-      ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: AppTheme.shellGradient,
+      child: app,
     );
   }
 }

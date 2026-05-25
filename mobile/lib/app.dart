@@ -19,11 +19,9 @@ class AppShell extends StatelessWidget {
     final profile = provider.activeProfile;
     if (profile == null) return const SizedBox.shrink();
 
-    return Container(
-      decoration: AppTheme.shellGradient,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
           bottom: false,
           child: Column(
             children: [
@@ -87,10 +85,9 @@ class AppShell extends StatelessWidget {
             ],
           ),
         ),
-        bottomNavigationBar: BottomNav(
-          activeTab: provider.tab,
-          onTabChanged: provider.setTab,
-        ),
+      bottomNavigationBar: BottomNav(
+        activeTab: provider.tab,
+        onTabChanged: provider.setTab,
       ),
     );
   }
@@ -102,6 +99,8 @@ class LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       decoration: AppTheme.loadingGradient,
       child: const Scaffold(
         backgroundColor: Colors.transparent,
@@ -139,6 +138,7 @@ class DailyTickerApp extends StatelessWidget {
     }
 
     return Stack(
+      fit: StackFit.expand,
       children: [
         if (provider.activeProfile != null) const AppShell(),
         const ProfilePicker(),
