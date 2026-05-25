@@ -23,8 +23,8 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    WidgetBridgePlugin.register(
-      with: engineBridge.pluginRegistry.registrar(forPlugin: "WidgetBridgePlugin")!
-    )
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "WidgetBridgePlugin") {
+      WidgetBridgePlugin.register(with: registrar)
+    }
   }
 }

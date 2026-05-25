@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   static const purple800 = Color(0xFF6B21A8);
@@ -25,7 +24,7 @@ class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: Colors.transparent,
-      textTheme: GoogleFonts.nunitoTextTheme(base.textTheme).apply(
+      textTheme: base.textTheme.apply(
         bodyColor: AppColors.foreground,
         displayColor: AppColors.foreground,
       ),
@@ -137,7 +136,7 @@ class CtaButton extends StatelessWidget {
       ),
     );
 
-  if (expand) {
+    if (expand) {
       return SizedBox(width: double.infinity, child: child);
     }
     return child;

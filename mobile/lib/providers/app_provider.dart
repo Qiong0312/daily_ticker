@@ -29,13 +29,19 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> init() async {
-    final loaded = await loadAppData();
-    final merged = await WidgetBridge.importIfNeeded(loaded);
-    _data = merged;
-    ready = true;
-    await saveAppData(_data);
-    await WidgetBridge.exportSnapshot(_data);
-    await handleWidgetDeepLink();
+    try {
+      final loaded = await loadAppData();
+      final merged = await WidgetBridge.importIfNeeded(loaded);
+      _data = merged;
+      ready = true;
+      await saveAppData(_data);
+      await WidgetBridge.exportSnapshot(_data);
+      await handleWidgetDeepLink();
+    } catch (e, st) {
+      debugPrint('AppProvider.init failed: $e\n$st');
+      _data = await loadAppData();
+      ready = true;
+    }
     notifyListeners();
   }
 
