@@ -62,12 +62,16 @@ enum WidgetLayout {
 
     var compactMissionRow: Bool { self != .large }
 
-    /// Tighter vertical gaps on large widget to use extra height.
-    var sectionSpacing: CGFloat { self == .large ? 2 : 4 }
+    var isLarge: Bool { self == .large }
 
-    var listSpacing: CGFloat { self == .large ? 2 : 3 }
+    /// Large widget: extra air between weather, progress, and tasks.
+    var sectionSpacing: CGFloat { isLarge ? 10 : 4 }
 
-    var tightWeatherFeel: Bool { self == .large }
+    var listSpacing: CGFloat { isLarge ? 5 : 3 }
+
+    var progressBarHeight: CGFloat { isLarge ? 12 : 5 }
+
+    var progressLabelSize: CGFloat { isLarge ? 11 : 10 }
 }
 
 private func rgbFromHex(_ hex: String) -> (r: Double, g: Double, b: Double) {
@@ -151,13 +155,13 @@ struct CompactTodayWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: layout.sectionSpacing) {
-            WidgetHeaderView(snapshot: snapshot)
+            WidgetHeaderView(snapshot: snapshot, showStreak: layout != .small)
 
             if layout.showsWeatherFeel {
-                WidgetWeatherFeelSection(snapshot: snapshot, tight: layout.tightWeatherFeel)
+                WidgetWeatherFeelSection(snapshot: snapshot, relaxed: layout.isLarge)
             }
 
-            WidgetProgressView(snapshot: snapshot, tight: layout.tightWeatherFeel)
+            WidgetProgressView(snapshot: snapshot, layout: layout)
 
             if snapshot.allTodayComplete {
                 SuperDayBanner(compact: layout.compactBanner)
@@ -169,7 +173,8 @@ struct CompactTodayWidgetView: View {
                     maxItems: layout.maxItems,
                     columns: layout.columns,
                     compactRow: layout.compactMissionRow,
-                    spacing: layout.listSpacing
+                    spacing: layout.listSpacing,
+                    relaxed: layout.isLarge
                 )
             }
 
@@ -182,6 +187,7 @@ struct CompactTodayWidgetView: View {
 
 struct WidgetHeaderView: View {
     let snapshot: WidgetSnapshot
+    var showStreak: Bool = true
 
     var body: some View {
         HStack(alignment: .center, spacing: 4) {
@@ -199,7 +205,7 @@ struct WidgetHeaderView: View {
                 }
             }
             Spacer(minLength: 0)
-            if snapshot.streak > 0 {
+            if showStreak, snapshot.streak > 0 {
                 Text("🔥 \(snapshot.streak)")
                     .font(.system(size: 9, weight: .bold))
                     .padding(.horizontal, 5)
@@ -233,25 +239,26 @@ struct WidgetAddMissionsButton: View {
 
 struct WidgetWeatherFeelSection: View {
     let snapshot: WidgetSnapshot
-    var tight: Bool = false
+    var relaxed: Bool = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: tight ? 4 : 6) {
+        HStack(alignment: .top, spacing: relaxed ? 10 : 6) {
             WidgetEmojiOptionGroup(
                 label: "Weather",
                 options: widgetWeatherOptions,
                 selectedId: snapshot.entry?.weather,
                 weatherIntent: true,
-                tight: tight
+                relaxed: relaxed
             )
             WidgetEmojiOptionGroup(
                 label: "Feel",
                 options: widgetMoodOptions,
                 selectedId: snapshot.entry?.mood,
                 weatherIntent: false,
-                tight: tight
+                relaxed: relaxed
             )
         }
+        .padding(.bottom, relaxed ? 2 : 0)
     }
 }
 
@@ -260,23 +267,23 @@ struct WidgetEmojiOptionGroup: View {
     let options: [WidgetEmojiOption]
     let selectedId: String?
     let weatherIntent: Bool
-    var tight: Bool = false
+    var relaxed: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tight ? 1 : 2) {
+        VStack(alignment: .leading, spacing: relaxed ? 4 : 2) {
             Text(label)
-                .font(.system(size: tight ? 7 : 8, weight: .semibold))
+                .font(.system(size: relaxed ? 9 : 8, weight: .semibold))
                 .foregroundStyle(WidgetTheme.purple500)
-            HStack(spacing: tight ? 1 : 2) {
+            HStack(spacing: relaxed ? 4 : 2) {
                 ForEach(options) { option in
                     if weatherIntent {
                         Button(intent: SetWeatherIntent(weather: option.id)) {
-                            WidgetEmojiChip(emoji: option.emoji, selected: selectedId == option.id, tight: tight)
+                            WidgetEmojiChip(emoji: option.emoji, selected: selectedId == option.id, relaxed: relaxed)
                         }
                         .buttonStyle(.plain)
                     } else {
                         Button(intent: SetMoodIntent(mood: option.id)) {
-                            WidgetEmojiChip(emoji: option.emoji, selected: selectedId == option.id, tight: tight)
+                            WidgetEmojiChip(emoji: option.emoji, selected: selectedId == option.id, relaxed: relaxed)
                         }
                         .buttonStyle(.plain)
                     }
@@ -290,13 +297,13 @@ struct WidgetEmojiOptionGroup: View {
 struct WidgetEmojiChip: View {
     let emoji: String
     let selected: Bool
-    var tight: Bool = false
+    var relaxed: Bool = false
 
     var body: some View {
         Text(emoji)
-            .font(.system(size: tight ? 12 : 13))
-            .padding(.horizontal, tight ? 3 : 4)
-            .padding(.vertical, tight ? 1 : 2)
+            .font(.system(size: relaxed ? 15 : 13))
+            .padding(.horizontal, relaxed ? 5 : 4)
+            .padding(.vertical, relaxed ? 4 : 2)
             .background(selected ? WidgetTheme.selectedEmojiBg : Color.white.opacity(0.75))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
@@ -310,15 +317,15 @@ struct WidgetEmojiChip: View {
 
 struct WidgetProgressView: View {
     let snapshot: WidgetSnapshot
-    var tight: Bool = false
+    var layout: WidgetLayout = .medium
 
     private var completed: Int { snapshot.today.filter(\.completed).count }
     private var total: Int { snapshot.today.count }
 
     var body: some View {
-        HStack(spacing: tight ? 4 : 6) {
+        HStack(spacing: layout.isLarge ? 8 : 6) {
             Text("\(completed)/\(total) ⭐")
-                .font(.system(size: tight ? 9 : 10, weight: .heavy))
+                .font(.system(size: layout.progressLabelSize, weight: .heavy))
                 .foregroundStyle(WidgetTheme.purple600)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -332,8 +339,9 @@ struct WidgetProgressView: View {
                         )
                 }
             }
-            .frame(height: tight ? 4 : 5)
+            .frame(height: layout.progressBarHeight)
         }
+        .padding(.vertical, layout.isLarge ? 2 : 0)
     }
 }
 
@@ -345,6 +353,7 @@ struct WidgetTodayList: View {
     let columns: Int
     var compactRow: Bool = true
     var spacing: CGFloat = 3
+    var relaxed: Bool = false
 
     private var visibleItems: [WidgetSnapshotTodayItem] {
         Array(snapshot.today.prefix(maxItems))
@@ -395,7 +404,8 @@ struct WidgetTodayList: View {
             WidgetTodayMissionRow(
                 mission: mission,
                 completed: item.completed,
-                compact: compactRow
+                compact: compactRow,
+                relaxed: relaxed
             )
         }
     }
@@ -405,14 +415,22 @@ struct WidgetTodayMissionRow: View {
     let mission: WidgetSnapshotMission
     let completed: Bool
     var compact: Bool = true
+    var relaxed: Bool = false
 
     private var accent: Color { parseHexColor(mission.color) }
-    private var starSize: CGFloat { compact ? 20 : 22 }
-    private var nameFont: CGFloat { compact ? 10 : 11 }
+    private var starSize: CGFloat {
+        if relaxed { return 24 }
+        return compact ? 20 : 22
+    }
+    private var nameFont: CGFloat {
+        if relaxed { return 12 }
+        return compact ? 10 : 11
+    }
+    private var rowRadius: CGFloat { relaxed ? 8 : 7 }
 
     var body: some View {
         Button(intent: ToggleCompleteIntent(missionId: mission.id)) {
-            HStack(spacing: compact ? 4 : 6) {
+            HStack(spacing: relaxed ? 6 : (compact ? 4 : 6)) {
                 WidgetStarToggle(completed: completed, accent: accent, size: starSize)
                 Text(mission.name)
                     .font(.system(size: nameFont, weight: .bold))
@@ -421,10 +439,10 @@ struct WidgetTodayMissionRow: View {
                     .minimumScaleFactor(0.75)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, compact ? 5 : 6)
-            .padding(.vertical, compact ? 2 : 2)
+            .padding(.horizontal, relaxed ? 8 : (compact ? 5 : 6))
+            .padding(.vertical, relaxed ? 5 : (compact ? 2 : 3))
             .background(missionTint(mission.color, amount: completed ? 22 : 34))
-            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .clipShape(RoundedRectangle(cornerRadius: rowRadius))
         }
         .buttonStyle(.plain)
     }
