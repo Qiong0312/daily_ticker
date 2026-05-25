@@ -165,6 +165,8 @@ Stored in `WidgetConfiguration` / `IntentConfiguration` — no App Group needed.
 | `SetMoodIntent` | Set `dailyEntries.mood` for today | same |
 | `OpenTodayIntent` | `dailyticker://today` | — |
 
+Removed from v1: `ShowMissionPickerIntent` — inline chips handle selection on Medium/Large.
+
 Each intent:
 
 1. Reads `widget_snapshot.json` from App Group.
@@ -305,7 +307,8 @@ sequenceDiagram
 |------|----------|
 | No active profile | Widget shows “Open Daily Ticker to set up” |
 | No missions | “Add missions in the app” + link |
-| Today list empty | Show picker chips only (Large) or “+ Add mission” (Medium) |
+| Today list empty | Inline chips only + hint “Tap a mission to add it!” (Medium/Large) |
+| All missions complete | [Celebration banner](#celebration-state-all-done) on all sizes |
 | Mission deleted but still in `today` | Hide row; prune on next app sync |
 | Midnight rollover | `dateKey` in snapshot stale until reload; timeline policy `.atEnd` + refresh at midnight |
 | Multiple devices | Same as today — last write wins (acceptable for v1) |
@@ -317,19 +320,11 @@ sequenceDiagram
 | Phase | Deliverable |
 |-------|-------------|
 | **1** | App Group + `widget_snapshot.json` + Flutter export/import |
-| **2** | Medium widget, read-only + open app |
-| **3** | App Intents: toggle complete + toggle on today |
-| **4** | Large widget + mission picker chips |
-| **5** | Configurable Weather / Feel + Small widget |
+| **2** | Medium widget, read-only + inline chips (scroll) + open app fallback |
+| **3** | App Intents: toggle complete + toggle on today + Super day UI |
+| **4** | Large widget (optional weather/feel rows) |
+| **5** | Configurable Weather / Feel + Small widget + Super day on Small |
 | **6** | Lock Screen accessories (optional): circular progress, streak |
-
----
-
-## Open questions (for you)
-
-1. **Profile:** Widget always uses **active profile** only, or allow picking profile in widget settings?
-2. **Picker on Medium:** Inline chips (crowded) vs. button that opens app — preference?
-3. **Celebration:** Show “Super day! 🎉” on widget when all complete (Small/Medium)?
 
 ---
 

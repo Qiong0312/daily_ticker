@@ -1,0 +1,142 @@
+import Foundation
+import WidgetKit
+
+// MARK: - Models
+
+struct WidgetSnapshotProfile: Codable {
+    var id: String
+    var name: String
+    var avatar: String
+}
+
+struct WidgetSnapshotEntry: Codable {
+    var weather: String?
+    var mood: String?
+}
+
+struct WidgetSnapshotMission: Codable {
+    var id: String
+    var name: String
+    var icon: String
+    var color: String
+    var sortOrder: Int
+}
+
+struct WidgetSnapshotTodayItem: Codable {
+    var missionId: String
+    var completed: Bool
+}
+
+struct WidgetSnapshot: Codable {
+    var version: Int = 1
+    var updatedAt: String
+    var needsAppSync: Bool = false
+    var activeProfileId: String?
+    var dateKey: String
+    var profile: WidgetSnapshotProfile?
+    var streak: Int = 0
+    var entry: WidgetSnapshotEntry?
+    var missions: [WidgetSnapshotMission] = []
+    var today: [WidgetSnapshotTodayItem] = []
+
+    var allTodayComplete: Bool {
+        !today.isEmpty && today.allSatisfy(\.completed)
+    }
+
+    func mission(for id: String) -> WidgetSnapshotMission? {
+        missions.first { $0.id == id }
+    }
+}
+
+// MARK: - Storage
+
+enum WidgetDataStore {
+    static let appGroupId = "group.com.dailyticker.dailyTicker"
+    static let fileName = "widget_snapshot.json"
+
+    static func fileURL() -> URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupId)?
+            .appendingPathComponent(fileName)
+    }
+
+    static func readRaw() -> String? {
+        guard let url = fileURL(),
+              let data = try? Data(contentsOf: url) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func writeRaw(_ json: String) throws {
+        guard let url = fileURL() else {
+            throw WidgetStoreError.noContainer
+        }
+        try json.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    static func load() -> WidgetSnapshot? {
+        guard let raw = readRaw(),
+              let data = raw.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
+    }
+
+    static func save(_ snapshot: WidgetSnapshot, markNeedsSync: Bool = false) throws {
+        var copy = snapshot
+        copy.needsAppSync = markNeedsSync
+        copy.updatedAt = ISO8601DateFormatter().string(from: Date())
+        let data = try JSONEncoder().encode(copy)
+        guard let url = fileURL() else { throw WidgetStoreError.noContainer }
+        try data.write(to: url, options: .atomic)
+        reloadTimelines()
+    }
+
+    static func reloadTimelines() {
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // MARK: Mutations (widget intents)
+
+    static func toggleComplete(missionId: String) throws {
+        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        guard let index = snapshot.today.firstIndex(where: { $0.missionId == missionId }) else {
+            throw WidgetStoreError.missionNotOnToday
+        }
+        snapshot.today[index].completed.toggle()
+        try save(snapshot, markNeedsSync: true)
+    }
+
+    static func toggleOnToday(missionId: String) throws {
+        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        if let index = snapshot.today.firstIndex(where: { $0.missionId == missionId }) {
+            snapshot.today.remove(at: index)
+        } else {
+            snapshot.today.append(WidgetSnapshotTodayItem(missionId: missionId, completed: false))
+        }
+        try save(snapshot, markNeedsSync: true)
+    }
+
+    static func setWeather(_ value: String) throws {
+        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        if snapshot.entry == nil {
+            snapshot.entry = WidgetSnapshotEntry(weather: value, mood: nil)
+        } else {
+            snapshot.entry?.weather = value
+        }
+        try save(snapshot, markNeedsSync: true)
+    }
+
+    static func setMood(_ value: String) throws {
+        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        if snapshot.entry == nil {
+            snapshot.entry = WidgetSnapshotEntry(weather: nil, mood: value)
+        } else {
+            snapshot.entry?.mood = value
+        }
+        try save(snapshot, markNeedsSync: true)
+    }
+}
+
+enum WidgetStoreError: Error {
+    case noContainer
+    case noSnapshot
+    case missionNotOnToday
+}

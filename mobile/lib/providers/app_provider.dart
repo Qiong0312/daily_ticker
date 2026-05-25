@@ -5,6 +5,7 @@ import '../data/defaults.dart';
 import '../data/storage.dart';
 import '../models/types.dart';
 import '../utils/date_utils.dart';
+import '../widget/widget_bridge.dart';
 
 class AppProvider extends ChangeNotifier {
   AppProvider();
@@ -28,14 +29,31 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> init() async {
-    _data = await loadAppData();
+    final loaded = await loadAppData();
+    final merged = await WidgetBridge.importIfNeeded(loaded);
+    _data = merged;
     ready = true;
+    await saveAppData(_data);
+    await WidgetBridge.exportSnapshot(_data);
     notifyListeners();
+  }
+
+  /// Pull widget edits after resume (e.g. home screen toggles).
+  Future<void> syncFromWidget() async {
+    if (!ready) return;
+    final merged = await WidgetBridge.importIfNeeded(_data);
+    if (merged != _data) {
+      _data = merged;
+      await saveAppData(_data);
+      await WidgetBridge.exportSnapshot(_data);
+      notifyListeners();
+    }
   }
 
   Future<void> _persist() async {
     if (ready) {
       await saveAppData(_data);
+      await WidgetBridge.exportSnapshot(_data);
     }
   }
 
