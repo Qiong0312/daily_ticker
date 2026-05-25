@@ -56,10 +56,24 @@ Implementation lives in:
 
 | Issue | Fix |
 |-------|-----|
+| **Invalid placeholder attributes** (simulator won’t install) | Widget extension was missing **CFBundleVersion**. Fixed in `TodayWidget/Info.plist` (version `1` / `1.0.0`). In Xcode: **Product → Clean Build Folder**, delete app from simulator, run again. |
 | Widget shows “Open the app…” | Open app once while signed in so snapshot exports |
 | Taps do nothing | Simulator/device must be iOS 17+; rebuild after adding extension |
 | `configure_widget.rb` fails | Add **Widget Extension** manually in Xcode (name `TodayWidgetExtension`, include all `ios/TodayWidget/*.swift` + `ios/Shared/WidgetDataStore.swift`) |
 | App Group errors | Same group ID on Runner + extension entitlements |
+
+### “Invalid placeholder attributes” (detail)
+
+The home screen **widget extension** (`TodayWidgetExtension.appex`) must have a valid **bundle version**. If `CFBundleVersion` is empty, iOS refuses to install the app on the simulator.
+
+Before running from Xcode, generate Flutter iOS config once:
+
+```bash
+cd mobile
+flutter pub get
+```
+
+Then in Xcode: **⇧⌘K** (Clean), **⌘R** on **Runner** with an **iPad/iPhone simulator** selected.
 
 ## Manual target creation (if Ruby script unavailable)
 
