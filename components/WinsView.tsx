@@ -363,7 +363,18 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-bold text-purple-900">{title}</p>
-          <p className="text-xs text-purple-700">{description}</p>
+          {description.split("\n").map((line, i) => (
+            <p
+              key={i}
+              className={
+                i === 0
+                  ? "text-xs text-purple-700"
+                  : "text-[10px] font-semibold text-purple-500"
+              }
+            >
+              {line}
+            </p>
+          ))}
           {unlocked ? (
             <span className="mt-1 inline-block rounded-full bg-white/60 px-2 py-0.5 text-xs font-bold capitalize text-green-700">
               {tier} unlocked

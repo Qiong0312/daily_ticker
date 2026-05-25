@@ -28,19 +28,17 @@ function tierFromThresholds(
   return "locked";
 }
 
-function nextTarget(
-  value: number,
-  thresholds: { bronze: number; silver: number; gold: number }
-): number {
-  if (value < thresholds.bronze) return thresholds.bronze;
-  if (value < thresholds.silver) return thresholds.silver;
-  if (value < thresholds.gold) return thresholds.gold;
-  return thresholds.gold;
-}
-
 function tierLabel(tier: Tier): string {
   if (tier === "locked") return "";
   return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
+function tierProgressionHint(thresholds: {
+  bronze: number;
+  silver: number;
+  gold: number;
+}): string {
+  return `Earn ${thresholds.bronze} to unlock bronze · ${thresholds.silver} for silver · ${thresholds.gold} for gold`;
 }
 
 function buildTieredAchievement(
@@ -53,21 +51,21 @@ function buildTieredAchievement(
   unit: string
 ): Achievement {
   const tier = tierFromThresholds(progress, thresholds);
-  const target = nextTarget(progress, thresholds);
+  const max = thresholds.gold;
 
   return {
     id,
     title: tier === "locked" ? title : `${title} — ${tierLabel(tier)}`,
     description:
       tier === "gold"
-        ? `Max level! ${progress} ${unit}`
-        : `${progress}/${target} ${unit}`,
+        ? `Max level! ${progress}/${max} ${unit}`
+        : `${progress}/${max} ${unit}\n${tierProgressionHint(thresholds)}`,
     icon,
     category,
     tier,
     unlocked: tier !== "locked",
     progress,
-    target,
+    target: max,
   };
 }
 
@@ -91,13 +89,6 @@ function goalProgressTier(progress: number, goal: number): Tier {
   return "locked";
 }
 
-function nextGoalTierTarget(progress: number, goal: number): number {
-  const { bronze, silver, gold } = goalTierThresholds(goal);
-  if (progress < bronze) return bronze;
-  if (progress < silver) return silver;
-  return gold;
-}
-
 function buildStarGoalAchievement(
   id: string,
   baseTitle: string,
@@ -107,7 +98,7 @@ function buildStarGoalAchievement(
   unit: string
 ): Achievement {
   const tier = goalProgressTier(progress, goal);
-  const nextTarget = nextGoalTierTarget(progress, goal);
+  const thresholds = goalTierThresholds(goal);
 
   const titles = {
     locked: baseTitle,
@@ -122,7 +113,7 @@ function buildStarGoalAchievement(
     description:
       tier === "gold"
         ? `${progress}/${goal} ${unit} — goal reached!`
-        : `${progress}/${nextTarget} ${unit}`,
+        : `${progress}/${goal} ${unit}\n${tierProgressionHint(thresholds)}`,
     icon,
     category: "stars",
     tier,
@@ -138,7 +129,7 @@ function buildWeeklyGoalAchievement(
 ): Achievement {
   const goal = getWeeklyGoal(mission);
   const tier = goalProgressTier(weekCount, goal);
-  const nextTarget = nextGoalTierTarget(weekCount, goal);
+  const thresholds = goalTierThresholds(goal);
 
   const titles = {
     locked: `${mission.name} Weekly Goal`,
@@ -153,7 +144,7 @@ function buildWeeklyGoalAchievement(
     description:
       tier === "gold"
         ? `${weekCount}/${goal} stars this week — goal reached!`
-        : `${weekCount}/${nextTarget} stars this week (Mon–Sun)`,
+        : `${weekCount}/${goal} stars this week (Mon–Sun)\n${tierProgressionHint(thresholds)}`,
     icon: mission.icon,
     category: "subject",
     tier,
