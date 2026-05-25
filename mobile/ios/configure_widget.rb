@@ -51,14 +51,18 @@ runner_sources = %w[
 ]
 
 def add_source(project, target, group, path)
-  ref = group.new_file(path)
+  # Use basename only — group already has path TodayWidget/ or Shared/ or Runner/
+  ref = group.new_file(File.basename(path))
   target.source_build_phase.add_file_reference(ref)
 end
+
+runner_group = project.main_group['Runner'] || project.main_group.new_group('Runner', 'Runner')
 
 widget_sources.each { |p| add_source(project, widget_target, widget_group, p) }
 runner_sources.each do |p|
   next if runner.source_build_phase.files_references.any? { |r| r.path&.include?(File.basename(p)) }
-  add_source(project, runner, shared_group, p)
+  group = p.start_with?('Runner/') ? runner_group : shared_group
+  add_source(project, runner, group, p)
 end
 
 widget_target.build_configurations.each do |config|
