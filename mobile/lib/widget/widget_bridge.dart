@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../models/types.dart';
+import '../utils/date_utils.dart';
 import 'widget_snapshot.dart';
 
 const _channel = MethodChannel('com.dailyticker/widget_bridge');
@@ -47,6 +48,9 @@ class WidgetBridge {
       final snapshot = WidgetSnapshot.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
+      // Widget display normalizes stale days in Swift, but the file may still
+      // hold yesterday + needsAppSync — never merge that into the app.
+      if (snapshot.dateKey != todayKey()) return data;
       if (!snapshot.needsAppSync) return data;
 
       final merged = WidgetSnapshot.mergeIntoAppData(data, snapshot);
@@ -55,6 +59,22 @@ class WidgetBridge {
     } catch (e, st) {
       debugPrint('WidgetBridge.importIfNeeded failed: $e\n$st');
       return data;
+    }
+  }
+
+  /// True when the on-disk widget snapshot is for a previous calendar day.
+  static Future<bool> isSnapshotStale() async {
+    if (!isSupported) return false;
+    try {
+      final raw = await _channel.invokeMethod<String>('readSnapshot');
+      if (raw == null || raw.isEmpty) return true;
+      final snapshot = WidgetSnapshot.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      return snapshot.dateKey != todayKey();
+    } catch (e, st) {
+      debugPrint('WidgetBridge.isSnapshotStale failed: $e\n$st');
+      return false;
     }
   }
 }

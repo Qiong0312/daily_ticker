@@ -9,20 +9,22 @@ import 'providers/app_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    debugPrint('FlutterError: ${details.exceptionAsString()}');
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('Uncaught async error: $error\n$stack');
-    return true;
-  };
-
   runZonedGuarded(
-    () => runApp(const DailyTickerRoot()),
+    () {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        debugPrint('FlutterError: ${details.exceptionAsString()}');
+      };
+
+      PlatformDispatcher.instance.onError = (error, stack) {
+        debugPrint('Uncaught async error: $error\n$stack');
+        return true;
+      };
+
+      runApp(const DailyTickerRoot());
+    },
     (error, stack) => debugPrint('Zone error: $error\n$stack'),
   );
 }
@@ -62,11 +64,14 @@ class _AppWithWidgetSyncState extends State<_AppWithWidgetSync>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final provider = context.read<AppProvider>();
+      if (!provider.ready) return;
       provider.syncFromWidget();
       provider.handleWidgetDeepLink();
-    }
+    });
   }
 
   @override

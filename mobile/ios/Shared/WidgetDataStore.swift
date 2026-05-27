@@ -93,10 +93,54 @@ enum WidgetDataStore {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
+    /// Match Dart `todayKey()` — `yyyy-MM-dd` in local time.
+    static func todayDateKey(for date: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
+    }
+
+    /// Drop yesterday's tasks/weather when the calendar day has changed.
+    static func normalizedForToday(_ snapshot: WidgetSnapshot?) -> WidgetSnapshot? {
+        guard var copy = snapshot else { return nil }
+        let today = todayDateKey()
+        guard copy.dateKey != today else { return copy }
+        copy.dateKey = today
+        copy.today = []
+        copy.entry = nil
+        copy.needsAppSync = false
+        return copy
+    }
+
+    /// Persist a stale-day reset so the app never imports yesterday on launch.
+    static func clearStaleSnapshotIfNeeded() {
+        guard let snapshot = load(), snapshot.dateKey != todayDateKey() else { return }
+        var fresh = snapshot
+        fresh.dateKey = todayDateKey()
+        fresh.today = []
+        fresh.entry = nil
+        fresh.needsAppSync = false
+        try? save(fresh)
+    }
+
     // MARK: Mutations (widget intents)
 
-    static func toggleComplete(missionId: String) throws {
+    private static func loadMutableForToday() throws -> WidgetSnapshot {
         guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        let today = todayDateKey()
+        if snapshot.dateKey != today {
+            snapshot.dateKey = today
+            snapshot.today = []
+            snapshot.entry = nil
+            snapshot.needsAppSync = false
+        }
+        return snapshot
+    }
+
+    static func toggleComplete(missionId: String) throws {
+        var snapshot = try loadMutableForToday()
         guard let index = snapshot.today.firstIndex(where: { $0.missionId == missionId }) else {
             throw WidgetStoreError.missionNotOnToday
         }
@@ -105,7 +149,7 @@ enum WidgetDataStore {
     }
 
     static func toggleOnToday(missionId: String) throws {
-        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        var snapshot = try loadMutableForToday()
         if let index = snapshot.today.firstIndex(where: { $0.missionId == missionId }) {
             snapshot.today.remove(at: index)
         } else {
@@ -115,7 +159,7 @@ enum WidgetDataStore {
     }
 
     static func setWeather(_ value: String) throws {
-        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        var snapshot = try loadMutableForToday()
         if snapshot.entry == nil {
             snapshot.entry = WidgetSnapshotEntry(weather: value, mood: nil)
         } else {
@@ -125,7 +169,7 @@ enum WidgetDataStore {
     }
 
     static func setMood(_ value: String) throws {
-        guard var snapshot = load() else { throw WidgetStoreError.noSnapshot }
+        var snapshot = try loadMutableForToday()
         if snapshot.entry == nil {
             snapshot.entry = WidgetSnapshotEntry(weather: nil, mood: value)
         } else {

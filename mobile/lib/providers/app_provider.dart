@@ -30,31 +30,33 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> init() async {
     try {
-      final loaded = await loadAppData();
-      final merged = await WidgetBridge.importIfNeeded(loaded);
-      _data = merged;
-      ready = true;
+      _data = await loadAppData();
+      _data = await WidgetBridge.importIfNeeded(_data);
       await saveAppData(_data);
-      await WidgetBridge.exportSnapshot(_data);
-      await handleWidgetDeepLink();
     } catch (e, st) {
       debugPrint('AppProvider.init failed: $e\n$st');
-      _data = await loadAppData();
-      ready = true;
+      try {
+        _data = await loadAppData();
+      } catch (_) {
+        _data = emptyAppData;
+      }
     }
+    ready = true;
     notifyListeners();
+    // Push today's snapshot after UI is ready; never merge stale widget days.
+    await syncFromWidget();
+    await handleWidgetDeepLink();
   }
 
-  /// Pull widget edits after resume (e.g. home screen toggles).
+  /// Pull widget edits, then push current app state (needed when the day rolls over).
   Future<void> syncFromWidget() async {
     if (!ready) return;
     final merged = await WidgetBridge.importIfNeeded(_data);
-    if (merged != _data) {
-      _data = merged;
-      await saveAppData(_data);
-      await WidgetBridge.exportSnapshot(_data);
-      notifyListeners();
-    }
+    final changed = merged != _data;
+    _data = merged;
+    await saveAppData(_data);
+    await WidgetBridge.exportSnapshot(_data);
+    if (changed) notifyListeners();
   }
 
   /// After widget + button (`dailyticker://today`), switch to Today tab.

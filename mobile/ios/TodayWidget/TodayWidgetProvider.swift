@@ -12,20 +12,42 @@ struct TodayWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TodayWidgetEntry) -> Void) {
-        completion(TodayWidgetEntry(date: Date(), snapshot: WidgetDataStore.load() ?? placeholderSnapshot))
+        WidgetDataStore.clearStaleSnapshotIfNeeded()
+        let snapshot = WidgetDataStore.normalizedForToday(WidgetDataStore.load())
+            ?? placeholderSnapshot
+        completion(TodayWidgetEntry(date: Date(), snapshot: snapshot))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayWidgetEntry>) -> Void) {
-        let snapshot = WidgetDataStore.load()
-        let entry = TodayWidgetEntry(date: Date(), snapshot: snapshot)
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
-        completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
+        WidgetDataStore.clearStaleSnapshotIfNeeded()
+        let now = Date()
+        let calendar = Calendar.current
+        let snapshot = WidgetDataStore.normalizedForToday(WidgetDataStore.load())
+
+        var entries: [TodayWidgetEntry] = [
+            TodayWidgetEntry(date: now, snapshot: snapshot),
+        ]
+
+        // Refresh at next midnight so the widget clears yesterday without opening the app.
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) {
+            var overnight = snapshot
+            if var copy = overnight {
+                copy.dateKey = WidgetDataStore.todayDateKey(for: tomorrow)
+                copy.today = []
+                copy.entry = nil
+                copy.needsAppSync = false
+                overnight = copy
+            }
+            entries.append(TodayWidgetEntry(date: tomorrow, snapshot: overnight))
+        }
+
+        completion(Timeline(entries: entries, policy: .atEnd))
     }
 
     private var placeholderSnapshot: WidgetSnapshot {
         WidgetSnapshot(
             updatedAt: "",
-            dateKey: "2026-05-24",
+            dateKey: WidgetDataStore.todayDateKey(),
             profile: WidgetSnapshotProfile(id: "1", name: "Alex", avatar: "🦊"),
             streak: 3,
             missions: [
