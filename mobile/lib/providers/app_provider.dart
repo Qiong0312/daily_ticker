@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../data/backup.dart';
 import '../data/defaults.dart';
 import '../data/storage.dart';
 import '../models/types.dart';
@@ -344,5 +347,27 @@ class AppProvider extends ChangeNotifier {
                   dm.missionId == missionId))
           .toList(),
     ));
+  }
+
+  /// Save locally, then share a `.json` backup file.
+  Future<void> exportProgressBackupFile(Rect sharePositionOrigin) async {
+    if (!ready) return;
+    await saveAppData(_data);
+    await exportProgressBackup(
+      _data,
+      sharePositionOrigin: sharePositionOrigin,
+    );
+    await WidgetBridge.exportSnapshot(_data);
+  }
+
+  /// Replace all on-device data from a picked backup file.
+  Future<void> restoreProgressFromBackup(AppData imported) async {
+    _data = imported;
+    if (!ready) {
+      ready = true;
+    }
+    await saveAppData(_data);
+    await WidgetBridge.exportSnapshot(_data);
+    notifyListeners();
   }
 }

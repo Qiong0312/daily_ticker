@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/backup.dart';
 import '../models/types.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
@@ -481,6 +482,8 @@ class _WinsViewState extends State<WinsView> {
             ),
           );
         }),
+        const SizedBox(height: 16),
+        const _ProgressBackupSection(),
       ],
     );
   }
@@ -691,6 +694,201 @@ class _MedalCountChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProgressBackupSection extends StatefulWidget {
+  const _ProgressBackupSection();
+
+  @override
+  State<_ProgressBackupSection> createState() => _ProgressBackupSectionState();
+}
+
+class _ProgressBackupSectionState extends State<_ProgressBackupSection> {
+  final _sectionKey = GlobalKey();
+  var _busy = false;
+
+  Rect get _shareOrigin =>
+      shareOriginFromContext(_sectionKey.currentContext ?? context);
+
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? const Color(0xFFDC2626) : const Color(0xFF059669),
+      ),
+    );
+  }
+
+  Future<void> _run(Future<void> Function() action, String successMessage) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (mounted) _showMessage(successMessage);
+    } on BackupCancelled {
+      // User dismissed the file picker — no message.
+    } catch (e) {
+      if (mounted) _showMessage(e.toString(), isError: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<bool> _confirmRestore() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore backup?'),
+        content: const Text(
+          'This replaces all profiles, missions, and history on this device '
+          'with the backup file. Save a new backup first if you are unsure.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Restore',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.purple700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<AppProvider>();
+
+    return AppCard(
+      key: _sectionKey,
+      borderColor: const Color(0xFF86EFAC),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '💾 Save your progress',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.purple800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Progress saves automatically. Export or import a JSON backup to '
+            'restore after a crash or reinstall.',
+            style: TextStyle(fontSize: 13, color: AppColors.purple600, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _BackupFileButton(
+                  label: 'Export backup file',
+                  enabled: !_busy,
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          final origin = _shareOrigin;
+                          _run(
+                            () => provider.exportProgressBackupFile(origin),
+                            'Backup ready — choose where to save the file.',
+                          );
+                        },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _BackupFileButton(
+                  label: 'Import backup file',
+                  enabled: !_busy,
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          if (_busy) return;
+                          setState(() => _busy = true);
+                          try {
+                            final imported = await importProgressBackup();
+                            if (!mounted) return;
+                            final confirmed = await _confirmRestore();
+                            if (!confirmed || !mounted) return;
+                            await provider.restoreProgressFromBackup(imported);
+                            if (mounted) {
+                              _showMessage('Progress restored from backup.');
+                            }
+                          } on BackupCancelled {
+                            // No message.
+                          } catch (e) {
+                            if (mounted) {
+                              _showMessage(e.toString(), isError: true);
+                            }
+                          } finally {
+                            if (mounted) setState(() => _busy = false);
+                          }
+                        },
+                ),
+              ),
+            ],
+          ),
+          if (_busy) ...[
+            const SizedBox(height: 12),
+            const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BackupFileButton extends StatelessWidget {
+  const _BackupFileButton({
+    required this.label,
+    required this.onPressed,
+    this.enabled = true,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+      onPressed: enabled ? onPressed : null,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.purple600,
+        side: const BorderSide(color: Color(0xFFE9D5FF), width: 2),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+      ),
       ),
     );
   }

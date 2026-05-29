@@ -35,3 +35,18 @@ Future<void> saveAppData(AppData data) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(storageKey, jsonEncode(data.toJson()));
 }
+
+String encodeAppData(AppData data) {
+  return const JsonEncoder.withIndent('  ').convert(data.toJson());
+}
+
+AppData? parseAppDataJson(String raw) {
+  try {
+    final parsed = AppData.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    return parsed.copyWith(
+      missions: parsed.missions.map(normalizeMission).toList(),
+    );
+  } catch (_) {
+    return null;
+  }
+}
